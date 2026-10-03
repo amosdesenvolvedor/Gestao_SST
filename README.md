@@ -62,6 +62,12 @@ Para evolucoes de schema da Fase 02:
 
 ```bash
 npm run prisma:migrate -w @gestao-sst/api -- --name users_professionals_rbac
+
+Para evolucoes de schema da Fase 03:
+
+```bash
+npm run prisma:migrate -w @gestao-sst/api -- --name clients_establishments_contacts
+```
 ```
 
 ### DATABASE_URL
@@ -138,7 +144,7 @@ npm run build
 ## Observacoes da Fase 01
 
 - Apenas fundacao arquitetural.
-- Modulos de negocio completos (clientes, contratos, financeiro, documentos SST) nao foram implementados.
+- Modulos de negocio completos (contratos, financeiro, documentos SST) nao foram implementados.
 - API versionada em `/api/v1` com endpoints minimos de saude e autenticacao.
 - `GET /api/v1/health` informa saude da API e conectividade com banco sem expor credenciais.
 
@@ -172,3 +178,42 @@ npm run build
 - Tela de usuarios: `Configuracoes > Usuarios`.
 - Tela de profissionais: `Profissionais`.
 - Autorizacao de UX via `can(permission)` com fallback server-side obrigatorio.
+
+## Fase 03 (Clientes, Estabelecimentos e Contatos)
+
+### Modulos implementados
+
+- Gestao de clientes com listagem paginada, filtros, criacao, edicao e ativacao/desativacao.
+- Gestao de estabelecimentos por cliente com regra de matriz unica.
+- Gestao de contatos por cliente com regra de contato principal unico.
+- Validacoes de CPF/CNPJ, CEP e telefone no backend com normalizacao persistida.
+- Auditoria de operacoes administrativas em `AuditLog`.
+
+### Endpoints principais da fase
+
+- `GET /api/v1/clients`
+- `POST /api/v1/clients`
+- `GET /api/v1/clients/:id`
+- `PATCH /api/v1/clients/:id`
+- `POST /api/v1/clients/:id/activate`
+- `POST /api/v1/clients/:id/deactivate`
+- `GET /api/v1/clients/:id/establishments`
+- `POST /api/v1/clients/:id/establishments`
+- `GET /api/v1/establishments/:id`
+- `PATCH /api/v1/establishments/:id`
+- `POST /api/v1/establishments/:id/activate`
+- `POST /api/v1/establishments/:id/deactivate`
+- `POST /api/v1/establishments/:id/set-headquarters`
+- `GET /api/v1/clients/:id/contacts`
+- `POST /api/v1/clients/:id/contacts`
+- `GET /api/v1/client-contacts/:id`
+- `PATCH /api/v1/client-contacts/:id`
+- `POST /api/v1/client-contacts/:id/activate`
+- `POST /api/v1/client-contacts/:id/deactivate`
+- `POST /api/v1/client-contacts/:id/set-primary`
+
+### Frontend
+
+- Tela de clientes: `Clientes`.
+- Tela de detalhe do cliente: `Clientes > Detalhes` (`/clientes/:id`) com secoes de estabelecimentos e contatos.
+- Rotas protegidas por permissionamento (`clients.read`, `establishments.read`, `clientContacts.read`).

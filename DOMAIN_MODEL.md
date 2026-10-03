@@ -64,6 +64,29 @@ Este documento descreve o modelo conceitual alvo. Nem todas as entidades estao i
 - Vinculo opcional User <-> Professional (0..1)
 - lastLoginAt em User
 
+## Fase 03 (Implementado no Banco)
+
+- Client
+- Establishment
+- ClientContact
+- DocumentType (CNPJ, CPF, OTHER)
+- ClientStatus (PROSPECT, ACTIVE, INACTIVE, SUSPENDED)
+- EstablishmentStatus (ACTIVE, INACTIVE, SUSPENDED)
+
+Regras de dominio implementadas:
+
+- Documento (taxId) e armazenado normalizado (somente digitos) e validado por tipo quando CNPJ/CPF.
+- Unicidade de documento e aplicada por indice unico em tabela e validacao cruzada em servico para evitar duplicidade entre Client e Establishment.
+- Um cliente pode ter varios estabelecimentos, mas apenas uma matriz ativa por vez.
+- Estrategia adotada para matriz:
+	- criacao/edicao com `isHeadquarters=true` falha com conflito se ja existir matriz;
+	- troca de matriz e feita apenas via endpoint especifico transacional (`set-headquarters`).
+- Um cliente pode ter varios contatos, mas apenas um contato principal por vez.
+- Estrategia adotada para contato principal:
+	- quando contato e criado/atualizado com `isPrimary=true`, os demais sao desmarcados na mesma transacao;
+	- endpoint dedicado (`set-primary`) permite troca explicita e atomica.
+- Exclusao logica por status/isActive (sem hard delete exposto na API).
+
 ## Distincao arquitetural
 
 - User representa identidade de acesso ao sistema.

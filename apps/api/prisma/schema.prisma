@@ -27,6 +27,25 @@ enum ProfessionalType {
   OTHER
 }
 
+enum DocumentType {
+  CNPJ
+  CPF
+  OTHER
+}
+
+enum ClientStatus {
+  PROSPECT
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum EstablishmentStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -41,6 +60,84 @@ model User {
   professional Professional?
 
   @@index([role])
+}
+
+model Client {
+  id                    String          @id @default(cuid())
+  legalName             String
+  tradeName             String?
+  taxIdType             DocumentType?
+  taxIdNumberNormalized String?         @unique
+  stateRegistration     String?
+  municipalRegistration String?
+  cnaeMain              String?
+  cnaeSecondary         String[]
+  sizeCategory          String?
+  status                ClientStatus    @default(PROSPECT)
+  notes                 String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  establishments Establishment[]
+  contacts       ClientContact[]
+
+  @@index([legalName])
+  @@index([status])
+}
+
+model Establishment {
+  id                    String              @id @default(cuid())
+  clientId              String
+  nickname              String?
+  taxIdType             DocumentType?
+  taxIdNumberNormalized String?             @unique
+  stateRegistration     String?
+  isHeadquarters        Boolean             @default(false)
+  status                EstablishmentStatus @default(ACTIVE)
+  cnaeMain              String?
+  cnaeSecondary         String[]
+  employeeCount         Int?
+  contactEmail          String?
+  contactPhone          String?
+  postalCode            String
+  street                String
+  number                String
+  complement            String?
+  neighborhood          String
+  city                  String
+  state                 String
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([clientId, status])
+  @@index([clientId, city])
+  @@index([clientId, state])
+  @@index([clientId, isHeadquarters])
+}
+
+model ClientContact {
+  id                String   @id @default(cuid())
+  clientId          String
+  name              String
+  role              String?
+  department        String?
+  email             String?
+  phone             String
+  preferredChannel  String?
+  isPrimary         Boolean  @default(false)
+  receivesBilling   Boolean  @default(false)
+  receivesReports   Boolean  @default(false)
+  receivesAlerts    Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([clientId, isActive])
+  @@index([clientId, isPrimary])
 }
 
 model Professional {

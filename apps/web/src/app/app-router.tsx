@@ -5,6 +5,8 @@ import { AccessDeniedPage } from '@/routes/access-denied-page'
 import { DashboardPage } from '@/routes/dashboard-page'
 import { NotFoundPage } from '@/routes/not-found-page'
 import { PermissionRoute } from '@/routes/permission-route'
+import { ClientDetailPage } from '@/routes/client-detail-page'
+import { ClientsPage } from '@/routes/clients-page'
 import { PlaceholderPage } from '@/routes/placeholder-page'
 import { ProfessionalsPage } from '@/routes/professionals-page'
 import { ProtectedRoute } from '@/routes/protected-route'
@@ -16,7 +18,22 @@ function PrivateLayout() {
       <AdminLayout>
         <Routes>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/clientes" element={<PlaceholderPage title="Clientes" />} />
+          <Route
+            path="/clientes"
+            element={
+              <PermissionRoute permissions={['clients.read']}>
+                <ClientsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/clientes/:id"
+            element={
+              <PermissionRoute permissions={['clients.read']}>
+                <ClientDetailPage />
+              </PermissionRoute>
+            }
+          />
           <Route path="/contratos" element={<PlaceholderPage title="Contratos" />} />
           <Route path="/financeiro" element={<PlaceholderPage title="Financeiro" />} />
           <Route path="/gestao-sst" element={<PlaceholderPage title="Gestao SST" />} />
