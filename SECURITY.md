@@ -62,4 +62,14 @@
 
 - Eventos de usuarios: criacao, atualizacao, ativacao, desativacao, reset de senha e alteracao de papel.
 - Eventos de profissionais: criacao, atualizacao, ativacao e desativacao.
+- Eventos de clientes/estabelecimentos/contatos: criacao, atualizacao, ativacao/desativacao e trocas de principal/matriz.
+- Eventos de catalogo/contratos: criacao/atualizacao/ativacao/desativacao de servicos, criacao/atualizacao de contratos, mudanca de status, inclusao/remocao de servicos contratados e inclusao/remocao de estabelecimentos abrangidos.
 - Sem armazenamento de senha, hash, JWT ou segredos no `AuditLog`.
+
+## Regras de Integridade da Fase 04
+
+- Validacao estrita server-side de datas civis de contrato (`YYYY-MM-DD`).
+- Validacao de valores monetarios positivos com armazenamento em `Decimal(14,2)`.
+- Bloqueio de alteracoes estruturais em contratos assinados/ativos/encerrados para reduzir risco operacional.
+- Validacao de pertencimento de estabelecimento ao mesmo cliente do contrato.
+- Snapshot do catalogo em `ContractService` para trilha historica e resiliencia a alteracoes futuras no catalogo.

@@ -62,12 +62,18 @@ Para evolucoes de schema da Fase 02:
 
 ```bash
 npm run prisma:migrate -w @gestao-sst/api -- --name users_professionals_rbac
+```
 
 Para evolucoes de schema da Fase 03:
 
 ```bash
 npm run prisma:migrate -w @gestao-sst/api -- --name clients_establishments_contacts
 ```
+
+Para evolucoes de schema da Fase 04:
+
+```bash
+npm run prisma:migrate -w @gestao-sst/api -- --name service_catalog_contracts
 ```
 
 ### DATABASE_URL
@@ -217,3 +223,45 @@ npm run build
 - Tela de clientes: `Clientes`.
 - Tela de detalhe do cliente: `Clientes > Detalhes` (`/clientes/:id`) com secoes de estabelecimentos e contatos.
 - Rotas protegidas por permissionamento (`clients.read`, `establishments.read`, `clientContacts.read`).
+
+## Fase 04 (Catalogo de Servicos e Contratos)
+
+### Modulos implementados
+
+- Catalogo de servicos com criacao, edicao, ativacao e desativacao.
+- Contratos com vigencia (data inicial/final ou duracao), status, forma de pagamento e valores monetarios.
+- Servicos contratados com snapshot do catalogo no momento do vinculo.
+- Estabelecimentos abrangidos por contrato com validacao de pertencimento ao mesmo cliente.
+- Regras de transicao de status e bloqueios estruturais para contratos assinados/ativos/encerrados.
+- Auditoria de operacoes administrativas em `AuditLog`.
+
+### Endpoints principais da fase
+
+- `GET /api/v1/services`
+- `POST /api/v1/services`
+- `GET /api/v1/services/:id`
+- `PATCH /api/v1/services/:id`
+- `POST /api/v1/services/:id/activate`
+- `POST /api/v1/services/:id/deactivate`
+- `GET /api/v1/contracts`
+- `POST /api/v1/contracts`
+- `GET /api/v1/contracts/:id`
+- `PATCH /api/v1/contracts/:id`
+- `POST /api/v1/contracts/:id/status`
+- `GET /api/v1/contracts/:id/services`
+- `POST /api/v1/contracts/:id/services`
+- `GET /api/v1/contract-services/:id`
+- `PATCH /api/v1/contract-services/:id`
+- `POST /api/v1/contract-services/:id/remove`
+- `GET /api/v1/contracts/:id/establishments`
+- `POST /api/v1/contracts/:id/establishments`
+- `POST /api/v1/contracts/:id/establishments/:establishmentId/remove`
+- `GET /api/v1/clients/:id/contracts`
+- `GET /api/v1/clients/:id/active-contract-services`
+
+### Frontend
+
+- Tela de contratos: `Contratos` (`/contratos`) com filtros por cliente e status.
+- Tela de detalhe do contrato: `Contratos > Detalhes` (`/contratos/:id`) com secoes de status, servicos e estabelecimentos.
+- Tela de catalogo de servicos: `Configuracoes > Servicos` (`/configuracoes/servicos`).
+- Integracao do detalhe do cliente com listagem de contratos e atalho para criacao contextual.

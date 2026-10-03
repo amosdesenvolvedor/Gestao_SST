@@ -87,6 +87,28 @@ Regras de dominio implementadas:
 	- endpoint dedicado (`set-primary`) permite troca explicita e atomica.
 - Exclusao logica por status/isActive (sem hard delete exposto na API).
 
+## Fase 04 (Implementado no Banco)
+
+- ServiceCatalog
+- Contract
+- ContractService
+- ContractEstablishment
+- ServiceCategory
+- ContractStatus
+- PaymentMethod
+
+Regras de dominio implementadas:
+
+- `Contract.contractNumber` e unico e normalizado em maiusculas.
+- Periodo contratual aceita `endDate` ou `durationMonths`, com reconciliacao obrigatoria entre datas e duracao.
+- `monthlyBaseValue` e calculado automaticamente a partir de `totalValue / durationMonths`.
+- Valores monetarios sao persistidos em `Decimal(14,2)`.
+- `ContractService` guarda snapshot de servico (`code/name/category/description`) para historico imutavel do item contratado.
+- Nao e permitido adicionar servico inativo ao contrato.
+- Nao e permitido vincular estabelecimento de outro cliente ao contrato.
+- Transicoes de status sao controladas por maquina de estados no backend.
+- Alteracoes estruturais (itens e estabelecimentos) sao bloqueadas para contratos em estados assinados/ativos/encerrados.
+
 ## Distincao arquitetural
 
 - User representa identidade de acesso ao sistema.

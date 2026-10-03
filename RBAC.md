@@ -47,19 +47,32 @@
 - clientContacts.activate
 - clientContacts.deactivate
 - clientContacts.setPrimary
+- serviceCatalog.read
+- serviceCatalog.create
+- serviceCatalog.update
+- serviceCatalog.activate
+- serviceCatalog.deactivate
+- contracts.read
+- contracts.create
+- contracts.update
+- contracts.changeStatus
+- contractServices.read
+- contractServices.manage
+- contractEstablishments.read
+- contractEstablishments.manage
 
 ## Matriz atual
 
 - SUPER_ADMIN: todas as permissions atuais.
-- ADMIN: users.* (exceto bloqueios de SUPER_ADMIN por regra de seguranca), professionals.*, settings.*, clients.*, establishments.* e clientContacts.*.
-- SST_MANAGER: dashboard.read, professionals.read, clients.read/create/update, establishments.read/create/update, clientContacts.read/create/update.
-- SAFETY_ENGINEER: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read.
-- SAFETY_TECHNICIAN: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read.
-- OCCUPATIONAL_PHYSICIAN: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read.
-- RH: dashboard.read, users.read, professionals.read/create/update, clients.read, clientContacts.read/create/update.
-- FINANCIAL: dashboard.read, clients.read, clientContacts.read.
+- ADMIN: users.* (exceto bloqueios de SUPER_ADMIN por regra de seguranca), professionals.*, settings.*, clients.*, establishments.*, clientContacts.*, serviceCatalog.*, contracts.*, contractServices.* e contractEstablishments.*.
+- SST_MANAGER: dashboard.read, professionals.read, clients.read/create/update, establishments.read/create/update, clientContacts.read/create/update, serviceCatalog.read, contracts.read/create/update/changeStatus, contractServices.read/manage, contractEstablishments.read/manage.
+- SAFETY_ENGINEER: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
+- SAFETY_TECHNICIAN: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
+- OCCUPATIONAL_PHYSICIAN: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
+- RH: dashboard.read, users.read, professionals.read/create/update, clients.read, clientContacts.read/create/update, contracts.read, contractServices.read, contractEstablishments.read.
+- FINANCIAL: dashboard.read, clients.read, clientContacts.read, contracts.read, contractServices.read, contractEstablishments.read.
 - CLIENT: dashboard.read.
-- VIEWER: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read.
+- VIEWER: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
 
 ## Regras anti-escalada
 
@@ -89,3 +102,11 @@
 - Apenas usuarios com permissions explicitas de `clientContacts.*` acessam gestao de contatos.
 - Leitura pode ser concedida sem escrita (ex.: VIEWER, SAFETY_ENGINEER).
 - Escrita sempre validada no backend com `authorizePermissions(...)`, sem confiar no frontend.
+
+## Regras de Contratos/Catalogo
+
+- Apenas usuarios com `serviceCatalog.*` gerenciam catalogo; perfis de leitura usam `serviceCatalog.read`.
+- Apenas usuarios com `contracts.*` criam/alteram contratos e mudam status.
+- Gestao de itens contratados exige `contractServices.manage`.
+- Gestao de estabelecimentos abrangidos exige `contractEstablishments.manage`.
+- Leitura de contratos/itens/abrangencia pode ser concedida sem escrita (ex.: VIEWER, FINANCIAL).

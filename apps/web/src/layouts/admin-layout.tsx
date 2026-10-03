@@ -8,13 +8,14 @@ import { useAuth } from '@/features/auth/auth-context'
 const items = [
   { to: '/dashboard', label: 'Dashboard', permission: 'dashboard.read' as Permission },
   { to: '/clientes', label: 'Clientes', permission: 'clients.read' as Permission },
-  { to: '/contratos', label: 'Contratos' },
+  { to: '/contratos', label: 'Contratos', permission: 'contracts.read' as Permission },
   { to: '/financeiro', label: 'Financeiro' },
   { to: '/gestao-sst', label: 'Gestao SST' },
   { to: '/documentos', label: 'Documentos' },
   { to: '/profissionais', label: 'Profissionais', permission: 'professionals.read' as Permission },
   { to: '/relatorios', label: 'Relatorios' },
   { to: '/configuracoes/usuarios', label: 'Usuarios', permission: 'users.read' as Permission },
+  { to: '/configuracoes/servicos', label: 'Servicos', permission: 'serviceCatalog.read' as Permission },
 ]
 
 export function AdminLayout({ children }: PropsWithChildren) {

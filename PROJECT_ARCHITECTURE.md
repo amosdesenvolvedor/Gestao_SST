@@ -30,9 +30,32 @@ Estrutura principal:
 - `src/config`: ambiente e configuracao.
 - `src/lib`: prisma, jwt, hash de senha.
 - `src/plugins`: seguranca, auth guard, cors, helmet.
-- `src/modules`: modulos por dominio (fase atual: `auth`).
-- `src/modules`: modulos por dominio (fase atual: `auth`, `users`, `professionals`).
+- `src/modules`: modulos por dominio (fase atual: `auth`, `users`, `professionals`, `clients`, `service-catalog`, `contracts`).
 - `src/shared`: utilitarios de erro e resposta.
+
+## Modulos de Dominio Implementados
+
+- `auth`: login/logout/me e validacao de sessao por cookie JWT.
+- `users`: administracao de contas e regras anti-escalada.
+- `professionals`: cadastro operacional SST.
+- `clients`: clientes, estabelecimentos e contatos.
+- `service-catalog`: catalogo de servicos padronizados.
+- `contracts`: contratos, servicos contratados e estabelecimentos abrangidos.
+
+## Contratos e Catalogo (Fase 04)
+
+- Persistencia via Prisma com entidades `ServiceCatalog`, `Contract`, `ContractService` e `ContractEstablishment`.
+- Valores monetarios em `Decimal(14,2)` no banco e serializacao em string na API.
+- Datas civis (`YYYY-MM-DD`) convertidas para UTC no backend para evitar ambiguidade de fuso.
+- Snapshot de servico no vinculo contratual (codigo/nome/categoria/descricao) para preservar historico.
+- Regras de status por maquina de estados e bloqueio de alteracoes estruturais em contratos assinados/ativos/encerrados.
+
+## Frontend (Rotas de Negocio)
+
+- `/clientes` e `/clientes/:id`.
+- `/contratos` e `/contratos/:id`.
+- `/configuracoes/servicos`.
+- Protecao por permissao em todas as rotas de negocio, com validacao definitiva no backend.
 
 ## Autenticacao
 

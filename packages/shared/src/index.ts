@@ -50,6 +50,19 @@ export const permissions = [
   'clientContacts.activate',
   'clientContacts.deactivate',
   'clientContacts.setPrimary',
+  'serviceCatalog.read',
+  'serviceCatalog.create',
+  'serviceCatalog.update',
+  'serviceCatalog.activate',
+  'serviceCatalog.deactivate',
+  'contracts.read',
+  'contracts.create',
+  'contracts.update',
+  'contracts.changeStatus',
+  'contractServices.read',
+  'contractServices.manage',
+  'contractEstablishments.read',
+  'contractEstablishments.manage',
 ] as const
 
 export const permissionSchema = z.enum(permissions)
@@ -92,6 +105,19 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'clientContacts.activate',
     'clientContacts.deactivate',
     'clientContacts.setPrimary',
+    'serviceCatalog.read',
+    'serviceCatalog.create',
+    'serviceCatalog.update',
+    'serviceCatalog.activate',
+    'serviceCatalog.deactivate',
+    'contracts.read',
+    'contracts.create',
+    'contracts.update',
+    'contracts.changeStatus',
+    'contractServices.read',
+    'contractServices.manage',
+    'contractEstablishments.read',
+    'contractEstablishments.manage',
   ],
   SST_MANAGER: [
     'dashboard.read',
@@ -105,10 +131,49 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'clientContacts.read',
     'clientContacts.create',
     'clientContacts.update',
+    'serviceCatalog.read',
+    'contracts.read',
+    'contracts.create',
+    'contracts.update',
+    'contracts.changeStatus',
+    'contractServices.read',
+    'contractServices.manage',
+    'contractEstablishments.read',
+    'contractEstablishments.manage',
   ],
-  SAFETY_ENGINEER: ['dashboard.read', 'professionals.read', 'clients.read', 'establishments.read', 'clientContacts.read'],
-  SAFETY_TECHNICIAN: ['dashboard.read', 'professionals.read', 'clients.read', 'establishments.read', 'clientContacts.read'],
-  OCCUPATIONAL_PHYSICIAN: ['dashboard.read', 'professionals.read', 'clients.read', 'establishments.read', 'clientContacts.read'],
+  SAFETY_ENGINEER: [
+    'dashboard.read',
+    'professionals.read',
+    'clients.read',
+    'establishments.read',
+    'clientContacts.read',
+    'serviceCatalog.read',
+    'contracts.read',
+    'contractServices.read',
+    'contractEstablishments.read',
+  ],
+  SAFETY_TECHNICIAN: [
+    'dashboard.read',
+    'professionals.read',
+    'clients.read',
+    'establishments.read',
+    'clientContacts.read',
+    'serviceCatalog.read',
+    'contracts.read',
+    'contractServices.read',
+    'contractEstablishments.read',
+  ],
+  OCCUPATIONAL_PHYSICIAN: [
+    'dashboard.read',
+    'professionals.read',
+    'clients.read',
+    'establishments.read',
+    'clientContacts.read',
+    'serviceCatalog.read',
+    'contracts.read',
+    'contractServices.read',
+    'contractEstablishments.read',
+  ],
   RH: [
     'dashboard.read',
     'users.read',
@@ -119,10 +184,30 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'clientContacts.read',
     'clientContacts.create',
     'clientContacts.update',
+    'contracts.read',
+    'contractServices.read',
+    'contractEstablishments.read',
   ],
-  FINANCIAL: ['dashboard.read', 'clients.read', 'clientContacts.read'],
+  FINANCIAL: [
+    'dashboard.read',
+    'clients.read',
+    'clientContacts.read',
+    'contracts.read',
+    'contractServices.read',
+    'contractEstablishments.read',
+  ],
   CLIENT: ['dashboard.read'],
-  VIEWER: ['dashboard.read', 'professionals.read', 'clients.read', 'establishments.read', 'clientContacts.read'],
+  VIEWER: [
+    'dashboard.read',
+    'professionals.read',
+    'clients.read',
+    'establishments.read',
+    'clientContacts.read',
+    'serviceCatalog.read',
+    'contracts.read',
+    'contractServices.read',
+    'contractEstablishments.read',
+  ],
 }
 
 export function getPermissionsForRole(role: Role): Permission[] {
@@ -184,6 +269,43 @@ export const establishmentStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as cons
 export const establishmentStatusSchema = z.enum(establishmentStatuses)
 
 export type EstablishmentStatus = (typeof establishmentStatuses)[number]
+
+export const serviceCategories = [
+  'TECHNICAL_DOCUMENT',
+  'OCCUPATIONAL_HEALTH',
+  'OCCUPATIONAL_SAFETY',
+  'MANAGEMENT',
+  'TRAINING',
+  'CONSULTING',
+  'OTHER',
+] as const
+
+export const serviceCategorySchema = z.enum(serviceCategories)
+
+export type ServiceCategory = (typeof serviceCategories)[number]
+
+export const contractStatuses = [
+  'DRAFT',
+  'IN_REVIEW',
+  'READY_FOR_SIGNATURE',
+  'AWAITING_SIGNATURE',
+  'SIGNED',
+  'ACTIVE',
+  'EXPIRING',
+  'ENDED',
+  'TERMINATED',
+  'CANCELLED',
+] as const
+
+export const contractStatusSchema = z.enum(contractStatuses)
+
+export type ContractStatus = (typeof contractStatuses)[number]
+
+export const paymentMethods = ['PIX', 'CREDIT_CARD', 'BANK_TRANSFER', 'BOLETO', 'OTHER'] as const
+
+export const paymentMethodSchema = z.enum(paymentMethods)
+
+export type PaymentMethod = (typeof paymentMethods)[number]
 
 export const brStates = [
   'AC',

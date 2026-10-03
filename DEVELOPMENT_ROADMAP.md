@@ -3,16 +3,22 @@
 ## FASE 01
 Fundacao
 
+Status: concluida.
+
 ## FASE 02
 Usuarios, profissionais e RBAC
 
-Status atual: em implementacao com persistencia, endpoints administrativos, matriz de permissoes e auditoria base.
+Status: concluida (persistencia, endpoints administrativos, matriz de permissoes e auditoria base).
 
 ## FASE 03
 Clientes e estabelecimentos
 
+Status: concluida (clientes, estabelecimentos, contatos e validacoes de documento/endereco).
+
 ## FASE 04
 Contratos e servicos
+
+Status: concluida (catalogo de servicos, contratos, servicos contratados, estabelecimentos abrangidos, RBAC e auditoria).
 
 ## FASE 05
 Financeiro

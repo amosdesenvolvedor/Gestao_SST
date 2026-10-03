@@ -46,6 +46,37 @@ enum EstablishmentStatus {
   SUSPENDED
 }
 
+enum ServiceCategory {
+  TECHNICAL_DOCUMENT
+  OCCUPATIONAL_HEALTH
+  OCCUPATIONAL_SAFETY
+  MANAGEMENT
+  TRAINING
+  CONSULTING
+  OTHER
+}
+
+enum ContractStatus {
+  DRAFT
+  IN_REVIEW
+  READY_FOR_SIGNATURE
+  AWAITING_SIGNATURE
+  SIGNED
+  ACTIVE
+  EXPIRING
+  ENDED
+  TERMINATED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  BANK_TRANSFER
+  BOLETO
+  OTHER
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -80,6 +111,7 @@ model Client {
 
   establishments Establishment[]
   contacts       ClientContact[]
+  contracts      Contract[]
 
   @@index([legalName])
   @@index([status])
@@ -110,11 +142,101 @@ model Establishment {
   updatedAt             DateTime            @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  contractLinks ContractEstablishment[]
 
   @@index([clientId, status])
   @@index([clientId, city])
   @@index([clientId, state])
   @@index([clientId, isHeadquarters])
+}
+
+model ServiceCatalog {
+  id          String          @id @default(cuid())
+  code        String          @unique
+  name        String
+  description String?
+  category    ServiceCategory
+  isActive    Boolean         @default(true)
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  contractServices ContractService[]
+
+  @@index([name])
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model Contract {
+  id                 String         @id @default(cuid())
+  clientId           String
+  renewedFromId      String?
+  contractNumber     String         @unique
+  title              String
+  status             ContractStatus @default(DRAFT)
+  startDate          DateTime
+  endDate            DateTime
+  durationMonths     Int
+  currency           String         @default("BRL")
+  totalValue         Decimal        @db.Decimal(14, 2)
+  monthlyBaseValue   Decimal        @db.Decimal(14, 2)
+  dueDay             Int
+  paymentMethod      PaymentMethod
+  notes              String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  client               Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  renewedFromContract  Contract?              @relation("ContractRenewal", fields: [renewedFromId], references: [id], onDelete: SetNull)
+  renewedContracts     Contract[]             @relation("ContractRenewal")
+  services             ContractService[]
+  establishments       ContractEstablishment[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([clientId, status])
+}
+
+model ContractService {
+  id                         String          @id @default(cuid())
+  contractId                 String
+  serviceCatalogId           String
+  serviceCodeSnapshot        String
+  serviceNameSnapshot        String
+  serviceDescriptionSnapshot String?
+  serviceCategorySnapshot    ServiceCategory
+  descriptionOverride        String?
+  quantity                   Int             @default(1)
+  unitValue                  Decimal?        @db.Decimal(14, 2)
+  totalValue                 Decimal?        @db.Decimal(14, 2)
+  isActive                   Boolean         @default(true)
+  notes                      String?
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+
+  contract       Contract       @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  serviceCatalog ServiceCatalog @relation(fields: [serviceCatalogId], references: [id], onDelete: Restrict)
+
+  @@unique([contractId, serviceCatalogId])
+  @@index([contractId])
+  @@index([serviceCatalogId])
+  @@index([contractId, isActive])
+}
+
+model ContractEstablishment {
+  contractId      String
+  establishmentId String
+  createdAt       DateTime @default(now())
+
+  contract      Contract      @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  establishment Establishment @relation(fields: [establishmentId], references: [id], onDelete: Restrict)
+
+  @@id([contractId, establishmentId])
+  @@index([contractId])
+  @@index([establishmentId])
 }
 
 model ClientContact {

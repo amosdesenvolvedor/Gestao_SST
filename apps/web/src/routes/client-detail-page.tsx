@@ -26,6 +26,7 @@ import {
   setHeadquarters,
   setPrimaryContact,
 } from '@/services/clients.service'
+import { listContractsByClient } from '@/services/contracts.service'
 
 function toApiMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -100,6 +101,12 @@ export function ClientDetailPage() {
         page: 1,
         pageSize: 50,
       }),
+    enabled: Boolean(id),
+  })
+
+  const contractsQuery = useQuery({
+    queryKey: ['client-contracts', id],
+    queryFn: () => listContractsByClient(id as string),
     enabled: Boolean(id),
   })
 
@@ -230,8 +237,13 @@ export function ClientDetailPage() {
   const client = clientQuery.data?.client
   const establishments = establishmentsQuery.data?.data ?? []
   const contacts = contactsQuery.data?.data ?? []
+  const contracts = contractsQuery.data?.data ?? []
 
-  const loading = clientQuery.isLoading || establishmentsQuery.isLoading || contactsQuery.isLoading
+  const loading =
+    clientQuery.isLoading ||
+    establishmentsQuery.isLoading ||
+    contactsQuery.isLoading ||
+    contractsQuery.isLoading
 
   const canManageEstablishments = useMemo(
     () =>
@@ -561,6 +573,39 @@ export function ClientDetailPage() {
             </div>
           </form>
         ) : null}
+      </Card>
+
+      <Card title="Contratos" subtitle="Contratos vinculados ao cliente e situacao atual.">
+        {contracts.length === 0 ? (
+          <EmptyState title="Sem contratos" description="Crie o primeiro contrato para este cliente." />
+        ) : (
+          <div className="space-y-3">
+            {contracts.map((contract) => (
+              <div key={contract.id} className="rounded-xl border border-slate-200 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-slate-900">{contract.contractNumber}</p>
+                    <p className="text-sm text-slate-600">
+                      {contract.title} | {contract.startDate} ate {contract.endDate}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge>{contract.status}</Badge>
+                    <Link to={`/contratos/${contract.id}`}>
+                      <Button variant="ghost">Abrir</Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4">
+          <Link to={`/contratos?clientId=${id}`}>
+            <Button variant="secondary">Novo contrato para este cliente</Button>
+          </Link>
+        </div>
       </Card>
     </div>
   )

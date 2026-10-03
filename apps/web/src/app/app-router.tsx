@@ -7,9 +7,12 @@ import { NotFoundPage } from '@/routes/not-found-page'
 import { PermissionRoute } from '@/routes/permission-route'
 import { ClientDetailPage } from '@/routes/client-detail-page'
 import { ClientsPage } from '@/routes/clients-page'
+import { ContractDetailPage } from '@/routes/contract-detail-page'
+import { ContractsPage } from '@/routes/contracts-page'
 import { PlaceholderPage } from '@/routes/placeholder-page'
 import { ProfessionalsPage } from '@/routes/professionals-page'
 import { ProtectedRoute } from '@/routes/protected-route'
+import { ServiceCatalogPage } from '@/routes/service-catalog-page'
 import { UsersPage } from '@/routes/users-page'
 
 function PrivateLayout() {
@@ -34,7 +37,22 @@ function PrivateLayout() {
               </PermissionRoute>
             }
           />
-          <Route path="/contratos" element={<PlaceholderPage title="Contratos" />} />
+          <Route
+            path="/contratos"
+            element={
+              <PermissionRoute permissions={['contracts.read']}>
+                <ContractsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/contratos/:id"
+            element={
+              <PermissionRoute permissions={['contracts.read']}>
+                <ContractDetailPage />
+              </PermissionRoute>
+            }
+          />
           <Route path="/financeiro" element={<PlaceholderPage title="Financeiro" />} />
           <Route path="/gestao-sst" element={<PlaceholderPage title="Gestao SST" />} />
           <Route path="/documentos" element={<PlaceholderPage title="Documentos" />} />
@@ -53,6 +71,14 @@ function PrivateLayout() {
             element={
               <PermissionRoute permissions={['users.read']}>
                 <UsersPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/configuracoes/servicos"
+            element={
+              <PermissionRoute permissions={['serviceCatalog.read']}>
+                <ServiceCatalogPage />
               </PermissionRoute>
             }
           />
