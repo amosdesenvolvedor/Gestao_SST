@@ -1,6 +1,8 @@
 import '@fastify/jwt'
-import type { Role } from '@gestao-sst/shared'
+import { getPermissionsForRole, type Permission, type Role } from '@gestao-sst/shared'
 import type { FastifyReply, FastifyRequest } from 'fastify'
+import { clearAuthCookie } from '../lib/jwt.js'
+import { prisma } from '../lib/prisma.js'
 
 export async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   try {
@@ -8,16 +10,33 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
       onlyCookie: true,
     })
 
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: {
+        id: true,
+        role: true,
+        isActive: true,
+      },
+    })
+
+    if (!user || !user.isActive) {
+      clearAuthCookie(reply)
+      reply.code(401).send({ message: 'Sessao invalida ou expirada.' })
+      return
+    }
+
     request.authUser = {
-      id: payload.sub,
-      role: payload.role,
+      id: user.id,
+      role: user.role,
+      permissions: getPermissionsForRole(user.role),
     }
   } catch {
+    clearAuthCookie(reply)
     reply.code(401).send({ message: 'Sessao invalida ou expirada.' })
   }
 }
 
-export function authorize(allowedRoles: Role[]) {
+export function authorizePermissions(requiredPermissions: Permission[]) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     await authenticate(request, reply)
 
@@ -25,7 +44,11 @@ export function authorize(allowedRoles: Role[]) {
       return
     }
 
-    if (!allowedRoles.includes(request.authUser.role)) {
+    const hasAllPermissions = requiredPermissions.every((permission) =>
+      request.authUser?.permissions.includes(permission),
+    )
+
+    if (!hasAllPermissions) {
       reply.code(403).send({ message: 'Acesso negado.' })
     }
   }

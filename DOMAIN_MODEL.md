@@ -57,4 +57,18 @@ Este documento descreve o modelo conceitual alvo. Nem todas as entidades estao i
 - Papel de acesso (Role)
 - Base para autenticacao
 
+## Fase 02 (Implementado no Banco)
+
+- Professional
+- ProfessionalType
+- Vinculo opcional User <-> Professional (0..1)
+- lastLoginAt em User
+
+## Distincao arquitetural
+
+- User representa identidade de acesso ao sistema.
+- Professional representa cadastro operacional SST.
+- Nem todo Professional precisa ter User.
+- Nem todo User precisa ter Professional.
+
 As demais entidades serao introduzidas incrementalmente em fases futuras.

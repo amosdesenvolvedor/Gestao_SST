@@ -20,6 +20,13 @@ enum Role {
   VIEWER
 }
 
+enum ProfessionalType {
+  OCCUPATIONAL_PHYSICIAN
+  SAFETY_ENGINEER
+  SAFETY_TECHNICIAN
+  OTHER
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -27,10 +34,36 @@ model User {
   passwordHash String
   role         Role
   isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  professional Professional?
+
   @@index([role])
+}
+
+model Professional {
+  id               String           @id @default(cuid())
+  name             String
+  email            String?
+  phone            String?
+  cpf              String?
+  professionalType ProfessionalType
+  councilType      String?
+  councilNumber    String?
+  councilState     String?
+  specialty        String?
+  isActive         Boolean          @default(true)
+  userId           String?          @unique
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([name])
+  @@index([professionalType])
+  @@index([isActive])
 }
 
 model AuditLog {

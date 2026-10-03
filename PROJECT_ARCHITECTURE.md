@@ -31,6 +31,7 @@ Estrutura principal:
 - `src/lib`: prisma, jwt, hash de senha.
 - `src/plugins`: seguranca, auth guard, cors, helmet.
 - `src/modules`: modulos por dominio (fase atual: `auth`).
+- `src/modules`: modulos por dominio (fase atual: `auth`, `users`, `professionals`).
 - `src/shared`: utilitarios de erro e resposta.
 
 ## Autenticacao
@@ -43,8 +44,24 @@ Estrutura principal:
 ## Autorizacao / RBAC
 
 - Enum centralizado de papeis no pacote shared.
-- Pre-handler de autorizacao no backend.
-- Guardas de rota no frontend para areas privadas e acesso negado.
+- Matriz centralizada role -> permissions no pacote shared.
+- Pre-handler de autorizacao por permissao no backend.
+- Guardas de rota por permissao no frontend para UX.
+
+## Regras de Seguranca da Fase 02
+
+- Validacao server-side de usuario ativo em toda requisicao autenticada.
+- Nao permitir escalada para SUPER_ADMIN por perfis nao autorizados.
+- Nao permitir desativar o ultimo SUPER_ADMIN ativo.
+- Nao permitir alteracao do proprio papel de acesso.
+- Nao expor `passwordHash` em respostas de API.
+
+## User x Professional
+
+- `User`: conta de acesso e autenticacao.
+- `Professional`: cadastro operacional/técnico SST.
+- Relacao opcional `Professional.userId` (0..1).
+- Um profissional pode existir sem conta e uma conta pode existir sem profissional.
 
 ## Regras Arquiteturais
 

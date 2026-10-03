@@ -1,6 +1,6 @@
 import type { SafeUser } from '@gestao-sst/shared'
 import { verifyPassword } from '../../lib/password.js'
-import { findUserByEmail, findUserById } from './auth.repository.js'
+import { findUserByEmail, findUserById, touchUserLastLogin } from './auth.repository.js'
 
 function toSafeUser(user: {
   id: string
@@ -9,6 +9,7 @@ function toSafeUser(user: {
   role: SafeUser['role']
   isActive: boolean
   createdAt: Date
+  lastLoginAt: Date | null
 }): SafeUser {
   return {
     id: user.id,
@@ -17,6 +18,7 @@ function toSafeUser(user: {
     role: user.role,
     isActive: user.isActive,
     createdAt: user.createdAt.toISOString(),
+    lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
   }
 }
 
@@ -33,7 +35,9 @@ export async function loginWithPassword(email: string, password: string): Promis
     return null
   }
 
-  return toSafeUser(user)
+  const updatedUser = await touchUserLastLogin(user.id)
+
+  return toSafeUser(updatedUser)
 }
 
 export async function getSafeUserById(id: string): Promise<SafeUser | null> {

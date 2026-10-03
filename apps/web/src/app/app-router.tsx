@@ -4,9 +4,11 @@ import { AdminLayout } from '@/layouts/admin-layout'
 import { AccessDeniedPage } from '@/routes/access-denied-page'
 import { DashboardPage } from '@/routes/dashboard-page'
 import { NotFoundPage } from '@/routes/not-found-page'
+import { PermissionRoute } from '@/routes/permission-route'
 import { PlaceholderPage } from '@/routes/placeholder-page'
+import { ProfessionalsPage } from '@/routes/professionals-page'
 import { ProtectedRoute } from '@/routes/protected-route'
-import { RoleRoute } from '@/routes/role-route'
+import { UsersPage } from '@/routes/users-page'
 
 function PrivateLayout() {
   return (
@@ -19,14 +21,22 @@ function PrivateLayout() {
           <Route path="/financeiro" element={<PlaceholderPage title="Financeiro" />} />
           <Route path="/gestao-sst" element={<PlaceholderPage title="Gestao SST" />} />
           <Route path="/documentos" element={<PlaceholderPage title="Documentos" />} />
-          <Route path="/profissionais" element={<PlaceholderPage title="Profissionais" />} />
-          <Route path="/relatorios" element={<PlaceholderPage title="Relatorios" />} />
           <Route
-            path="/configuracoes"
+            path="/profissionais"
             element={
-              <RoleRoute roles={['SUPER_ADMIN', 'ADMIN']}>
-                <PlaceholderPage title="Configuracoes" />
-              </RoleRoute>
+              <PermissionRoute permissions={['professionals.read']}>
+                <ProfessionalsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route path="/relatorios" element={<PlaceholderPage title="Relatorios" />} />
+          <Route path="/configuracoes" element={<Navigate to="/configuracoes/usuarios" replace />} />
+          <Route
+            path="/configuracoes/usuarios"
+            element={
+              <PermissionRoute permissions={['users.read']}>
+                <UsersPage />
+              </PermissionRoute>
             }
           />
           <Route path="*" element={<NotFoundPage />} />

@@ -1,24 +1,25 @@
 import { useState } from 'react'
 import type { PropsWithChildren } from 'react'
+import type { Permission } from '@gestao-sst/shared'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/button'
 import { useAuth } from '@/features/auth/auth-context'
 
 const items = [
-  { to: '/dashboard', label: 'Dashboard' },
+  { to: '/dashboard', label: 'Dashboard', permission: 'dashboard.read' as Permission },
   { to: '/clientes', label: 'Clientes' },
   { to: '/contratos', label: 'Contratos' },
   { to: '/financeiro', label: 'Financeiro' },
   { to: '/gestao-sst', label: 'Gestao SST' },
   { to: '/documentos', label: 'Documentos' },
-  { to: '/profissionais', label: 'Profissionais' },
+  { to: '/profissionais', label: 'Profissionais', permission: 'professionals.read' as Permission },
   { to: '/relatorios', label: 'Relatorios' },
-  { to: '/configuracoes', label: 'Configuracoes' },
+  { to: '/configuracoes/usuarios', label: 'Usuarios', permission: 'users.read' as Permission },
 ]
 
 export function AdminLayout({ children }: PropsWithChildren) {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, logout, can } = useAuth()
   const [open, setOpen] = useState(false)
 
   const handleLogout = async () => {
@@ -40,7 +41,9 @@ export function AdminLayout({ children }: PropsWithChildren) {
         </div>
 
         <nav className="space-y-1">
-          {items.map((item) => (
+          {items
+            .filter((item) => !item.permission || can(item.permission))
+            .map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -53,7 +56,7 @@ export function AdminLayout({ children }: PropsWithChildren) {
             >
               {item.label}
             </NavLink>
-          ))}
+            ))}
         </nav>
       </aside>
 

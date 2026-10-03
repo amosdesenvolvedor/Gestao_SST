@@ -58,6 +58,12 @@ npm run prisma:migrate -w @gestao-sst/api -- --name init_auth
 npm run prisma:status -w @gestao-sst/api
 ```
 
+Para evolucoes de schema da Fase 02:
+
+```bash
+npm run prisma:migrate -w @gestao-sst/api -- --name users_professionals_rbac
+```
+
 ### DATABASE_URL
 
 Formato esperado:
@@ -135,3 +141,34 @@ npm run build
 - Modulos de negocio completos (clientes, contratos, financeiro, documentos SST) nao foram implementados.
 - API versionada em `/api/v1` com endpoints minimos de saude e autenticacao.
 - `GET /api/v1/health` informa saude da API e conectividade com banco sem expor credenciais.
+
+## Fase 02 (Usuarios, Profissionais e RBAC)
+
+### Modulos implementados
+
+- Gestao de usuarios com listagem paginada, filtros, criacao, edicao, ativacao/desativacao e reset de senha.
+- Gestao de profissionais com listagem paginada, filtros, cadastro, edicao e ativacao/desativacao.
+- RBAC centralizado por permissoes, com regras anti-escalada e autoprotecao no backend.
+- Registro de eventos administrativos em `AuditLog`.
+
+### Endpoints principais da fase
+
+- `GET /api/v1/users`
+- `POST /api/v1/users`
+- `GET /api/v1/users/:id`
+- `PATCH /api/v1/users/:id`
+- `POST /api/v1/users/:id/activate`
+- `POST /api/v1/users/:id/deactivate`
+- `POST /api/v1/users/:id/reset-password`
+- `GET /api/v1/professionals`
+- `POST /api/v1/professionals`
+- `GET /api/v1/professionals/:id`
+- `PATCH /api/v1/professionals/:id`
+- `POST /api/v1/professionals/:id/activate`
+- `POST /api/v1/professionals/:id/deactivate`
+
+### Frontend
+
+- Tela de usuarios: `Configuracoes > Usuarios`.
+- Tela de profissionais: `Profissionais`.
+- Autorizacao de UX via `can(permission)` com fallback server-side obrigatorio.

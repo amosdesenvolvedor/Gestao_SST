@@ -3,6 +3,8 @@ import { env } from './config/env.js'
 import { authPlugin } from './plugins/auth.js'
 import { securityPlugin } from './plugins/security.js'
 import { authRoutes } from './modules/auth/auth.routes.js'
+import { usersRoutes } from './modules/users/users.routes.js'
+import { professionalsRoutes } from './modules/professionals/professionals.routes.js'
 import { registerErrorHandler } from './shared/errors.js'
 
 export function buildApp() {
@@ -15,6 +17,8 @@ export function buildApp() {
   app.register(securityPlugin)
   app.register(authPlugin)
   app.register(authRoutes, { prefix: '/api/v1' })
+  app.register(usersRoutes, { prefix: '/api/v1' })
+  app.register(professionalsRoutes, { prefix: '/api/v1' })
 
   registerErrorHandler(app)
 

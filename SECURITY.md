@@ -37,6 +37,8 @@
 - Cookie usa `sameSite=lax`, `path=/` e `secure=true` apenas em producao.
 - Em desenvolvimento, `secure=false` para permitir fluxo local entre portas diferentes.
 - CORS com `credentials=true` e origem explicita via `API_CORS_ORIGIN`.
+- Guard de autenticacao valida no banco se o usuario continua ativo.
+- JWT antigo de usuario desativado deixa de autorizar acesso.
 
 ## Bootstrap Administrativo
 
@@ -44,3 +46,20 @@
 - Credenciais recebidas por variaveis de ambiente temporarias locais.
 - Nao ha credenciais fixas no repositorio.
 - Criacao inicial registra evento `BOOTSTRAP_SUPER_ADMIN` no `AuditLog`.
+
+## RBAC e Privilegios
+
+- Autorizacao server-side por permissao, nao apenas por role.
+- Regras contra escalada de privilegio:
+	- perfis nao SUPER_ADMIN nao promovem para SUPER_ADMIN;
+	- perfis nao SUPER_ADMIN nao administram contas SUPER_ADMIN.
+- Regras de autoprotecao:
+	- nao desativar o proprio usuario administrativo;
+	- nao desativar o ultimo SUPER_ADMIN ativo;
+	- nao alterar o proprio papel para elevar privilegios.
+
+## Auditoria Administrativa
+
+- Eventos de usuarios: criacao, atualizacao, ativacao, desativacao, reset de senha e alteracao de papel.
+- Eventos de profissionais: criacao, atualizacao, ativacao e desativacao.
+- Sem armazenamento de senha, hash, JWT ou segredos no `AuditLog`.

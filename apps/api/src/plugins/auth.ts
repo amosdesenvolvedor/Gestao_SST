@@ -6,6 +6,7 @@ import { env } from '../config/env.js'
 export type AuthUser = {
   id: string
   role: import('@gestao-sst/shared').Role
+  permissions: import('@gestao-sst/shared').Permission[]
 }
 
 declare module 'fastify' {

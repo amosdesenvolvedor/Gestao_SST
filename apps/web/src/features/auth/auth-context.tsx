@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo } from 'react'
 import type { PropsWithChildren } from 'react'
-import type { LoginInput, Role, SafeUser } from '@gestao-sst/shared'
+import { hasPermission, type LoginInput, type Permission, type Role, type SafeUser } from '@gestao-sst/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '@/lib/api-client'
 import * as authService from '@/services/auth.service'
@@ -13,6 +13,8 @@ type AuthContextValue = {
   login: (input: LoginInput) => Promise<SafeUser>
   logout: () => Promise<void>
   hasAnyRole: (roles: Role[]) => boolean
+  can: (permission: Permission) => boolean
+  canAny: (permissions: Permission[]) => boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -68,6 +70,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return false
         }
         return roles.includes(meQuery.data.role)
+      },
+      can: (permission) => {
+        if (!meQuery.data) {
+          return false
+        }
+        return hasPermission(meQuery.data.role, permission)
+      },
+      canAny: (permissions) => {
+        if (!meQuery.data) {
+          return false
+        }
+        return permissions.some((permission) => hasPermission(meQuery.data.role, permission))
       },
     }),
     [loginMutation, logoutMutation, meQuery.data, meQuery.isFetching, meQuery.isLoading],

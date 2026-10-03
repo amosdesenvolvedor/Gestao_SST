@@ -6,6 +6,8 @@ Fundacao
 ## FASE 02
 Usuarios, profissionais e RBAC
 
+Status atual: em implementacao com persistencia, endpoints administrativos, matriz de permissoes e auditoria base.
+
 ## FASE 03
 Clientes e estabelecimentos
 
