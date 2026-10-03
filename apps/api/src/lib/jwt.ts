@@ -21,6 +21,9 @@ export function setAuthCookie(reply: FastifyReply, token: string): void {
 
 export function clearAuthCookie(reply: FastifyReply): void {
   const cookieValue = serialize(env.AUTH_COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
     path: '/',
     maxAge: 0,
   })

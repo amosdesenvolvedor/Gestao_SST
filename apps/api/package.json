@@ -10,10 +10,13 @@
     "start": "node dist/server.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:status": "prisma migrate status",
     "prisma:seed": "tsx prisma/seed.ts",
-    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts"
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts",
+    "admin:create": "tsx scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "@fastify/cookie": "9.4.0",

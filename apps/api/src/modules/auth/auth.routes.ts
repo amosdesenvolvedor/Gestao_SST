@@ -1,15 +1,31 @@
 import type { FastifyInstance } from 'fastify'
 import { clearAuthCookie, setAuthCookie } from '../../lib/jwt.js'
+import { prisma } from '../../lib/prisma.js'
 import { authenticate } from '../../plugins/guards.js'
 import { loginBodySchema } from './auth.schema.js'
 import { getSafeUserById, loginWithPassword } from './auth.service.js'
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.get('/health', async () => {
-    return {
+    const base = {
       service: 'gestao-sst-api',
-      status: 'ok',
       timestamp: new Date().toISOString(),
+    }
+
+    try {
+      await prisma.$queryRaw`SELECT 1`
+
+      return {
+        ...base,
+        api: 'ok',
+        database: 'ok',
+      }
+    } catch {
+      return {
+        ...base,
+        api: 'ok',
+        database: 'down',
+      }
     }
   })
 
