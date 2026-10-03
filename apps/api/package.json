@@ -1,0 +1,43 @@
+{
+  "name": "@gestao-sst/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "9.4.0",
+    "@fastify/cors": "8.5.0",
+    "@fastify/helmet": "11.1.1",
+    "@fastify/jwt": "7.2.4",
+    "@prisma/client": "5.22.0",
+    "@gestao-sst/shared": "1.0.0",
+    "argon2": "0.41.1",
+    "cookie": "0.6.0",
+    "dotenv": "16.4.5",
+    "fastify": "4.26.2",
+    "fastify-plugin": "4.5.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.13.0",
+    "@types/cookie": "0.6.0",
+    "@types/node": "22.8.7",
+    "eslint": "9.13.0",
+    "globals": "15.11.0",
+    "prisma": "5.22.0",
+    "tsx": "4.19.1",
+    "typescript": "~5.6.2",
+    "typescript-eslint": "8.11.0"
+  }
+}

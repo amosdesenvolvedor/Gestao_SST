@@ -1,0 +1,20 @@
+{
+  "name": "gestao-sst",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build -w @gestao-sst/shared && concurrently -n web,api -c green,blue \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev -w @gestao-sst/web",
+    "dev:api": "npm run build -w @gestao-sst/shared && npm run dev -w @gestao-sst/api",
+    "build": "npm run build -w @gestao-sst/shared && npm run build -w @gestao-sst/api && npm run build -w @gestao-sst/web",
+    "lint": "npm run lint -w @gestao-sst/shared && npm run lint -w @gestao-sst/api && npm run lint -w @gestao-sst/web",
+    "typecheck": "npm run typecheck -w @gestao-sst/shared && npm run typecheck -w @gestao-sst/api && npm run typecheck -w @gestao-sst/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

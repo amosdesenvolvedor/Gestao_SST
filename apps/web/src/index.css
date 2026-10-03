@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-soft: #f0fdfa;
+  --bg-panel: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --line: #d1fae5;
+  --brand: #0f766e;
+  --brand-contrast: #ccfbf1;
+  --danger: #b91c1c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--text-main);
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: radial-gradient(circle at 0% 0%, #ccfbf1 0, transparent 35%),
+    radial-gradient(circle at 100% 10%, #fde68a 0, transparent 25%),
+    var(--bg-soft);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-family: 'Barlow', sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
