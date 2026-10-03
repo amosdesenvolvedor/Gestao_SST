@@ -109,6 +109,20 @@ Regras de dominio implementadas:
 - Transicoes de status sao controladas por maquina de estados no backend.
 - Alteracoes estruturais (itens e estabelecimentos) sao bloqueadas para contratos em estados assinados/ativos/encerrados.
 
+## Fase 05 (Implementado no Banco)
+
+- ClientMembership
+
+Regras de dominio implementadas:
+
+- `User` e `Client` se relacionam em N:N por `ClientMembership`.
+- Membership define quais empresas um usuario `CLIENT` pode acessar no portal.
+- Membership possui ciclo de vida proprio (`isActive`, ativacao/desativacao/remocao logica por endpoint administrativo).
+- Usuario `CLIENT` sem membership ativo nao acessa dados do portal.
+- Cliente `SUSPENDED`/`INACTIVE` entra em modo informativo no portal (sem modulos operacionais).
+- Central visual do portal deriva de `ContractService` ativo em contratos com status operacionais (`SIGNED`, `ACTIVE`, `EXPIRING`).
+- Servicos repetidos sao agrupados por `serviceCodeSnapshot`, consolidando contratos relacionados.
+
 ## Distincao arquitetural
 
 - User representa identidade de acesso ao sistema.

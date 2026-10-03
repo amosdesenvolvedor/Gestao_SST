@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/api-client'
 import type {
   Client,
   ClientContact,
+  ClientMembership,
   Establishment,
   PaginatedResponse,
 } from '@/types/clients'
@@ -249,6 +250,62 @@ export function activateClientContact(id: string) {
 
 export function deactivateClientContact(id: string) {
   return apiClient<{ contact: ClientContact }>(`/api/v1/client-contacts/${id}/deactivate`, {
+    method: 'POST',
+  })
+}
+
+export function listClientPortalUsers(clientId: string) {
+  return apiClient<{ data: ClientMembership[] }>(`/api/v1/clients/${clientId}/portal-users`)
+}
+
+export function createClientPortalAccess(
+  clientId: string,
+  input: {
+    name: string
+    email: string
+    password: string
+    confirmPassword: string
+  },
+) {
+  return apiClient<{
+    user: {
+      id: string
+      name: string | null
+      email: string
+      role: string
+      isActive: boolean
+      createdAt: string
+      updatedAt: string
+      lastLoginAt: string | null
+    }
+    membership: ClientMembership
+  }>(`/api/v1/clients/${clientId}/portal-users/create-access`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function linkExistingClientPortalUser(clientId: string, userId: string) {
+  return apiClient<{ membership: ClientMembership }>(`/api/v1/clients/${clientId}/portal-users/link-existing`, {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  })
+}
+
+export function activateClientMembership(id: string) {
+  return apiClient<{ membership: ClientMembership }>(`/api/v1/client-memberships/${id}/activate`, {
+    method: 'POST',
+  })
+}
+
+export function deactivateClientMembership(id: string) {
+  return apiClient<{ membership: ClientMembership }>(`/api/v1/client-memberships/${id}/deactivate`, {
+    method: 'POST',
+  })
+}
+
+export function removeClientMembership(id: string) {
+  return apiClient<void>(`/api/v1/client-memberships/${id}/remove`, {
     method: 'POST',
   })
 }

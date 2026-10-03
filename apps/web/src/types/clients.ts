@@ -75,3 +75,19 @@ export type ClientContact = {
   createdAt: string
   updatedAt: string
 }
+
+export type ClientMembership = {
+  id: string
+  userId: string
+  clientId: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  user: {
+    id: string
+    name: string | null
+    email: string
+    role: string
+    isActive: boolean
+  }
+}

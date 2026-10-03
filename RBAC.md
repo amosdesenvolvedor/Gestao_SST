@@ -60,18 +60,24 @@
 - contractServices.manage
 - contractEstablishments.read
 - contractEstablishments.manage
+- clientPortal.access
+- clientPortal.services.read
+- clientPortal.contracts.read
+- clientPortal.establishments.read
+- clientPortalUsers.read
+- clientPortalUsers.manage
 
 ## Matriz atual
 
 - SUPER_ADMIN: todas as permissions atuais.
-- ADMIN: users.* (exceto bloqueios de SUPER_ADMIN por regra de seguranca), professionals.*, settings.*, clients.*, establishments.*, clientContacts.*, serviceCatalog.*, contracts.*, contractServices.* e contractEstablishments.*.
-- SST_MANAGER: dashboard.read, professionals.read, clients.read/create/update, establishments.read/create/update, clientContacts.read/create/update, serviceCatalog.read, contracts.read/create/update/changeStatus, contractServices.read/manage, contractEstablishments.read/manage.
+- ADMIN: users.* (exceto bloqueios de SUPER_ADMIN por regra de seguranca), professionals.*, settings.*, clients.*, establishments.*, clientContacts.*, serviceCatalog.*, contracts.*, contractServices.*, contractEstablishments.* e gestao de usuarios do portal (`clientPortalUsers.read/manage`).
+- SST_MANAGER: dashboard.read, professionals.read, clients.read/create/update, establishments.read/create/update, clientContacts.read/create/update, serviceCatalog.read, contracts.read/create/update/changeStatus, contractServices.read/manage, contractEstablishments.read/manage, `clientPortalUsers.read/manage`.
 - SAFETY_ENGINEER: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
 - SAFETY_TECHNICIAN: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
 - OCCUPATIONAL_PHYSICIAN: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
-- RH: dashboard.read, users.read, professionals.read/create/update, clients.read, clientContacts.read/create/update, contracts.read, contractServices.read, contractEstablishments.read.
+- RH: dashboard.read, users.read, professionals.read/create/update, clients.read, clientContacts.read/create/update, contracts.read, contractServices.read, contractEstablishments.read, `clientPortalUsers.read`.
 - FINANCIAL: dashboard.read, clients.read, clientContacts.read, contracts.read, contractServices.read, contractEstablishments.read.
-- CLIENT: dashboard.read.
+- CLIENT: `clientPortal.access`, `clientPortal.services.read`, `clientPortal.contracts.read`, `clientPortal.establishments.read`.
 - VIEWER: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
 
 ## Regras anti-escalada
@@ -110,3 +116,10 @@
 - Gestao de itens contratados exige `contractServices.manage`.
 - Gestao de estabelecimentos abrangidos exige `contractEstablishments.manage`.
 - Leitura de contratos/itens/abrangencia pode ser concedida sem escrita (ex.: VIEWER, FINANCIAL).
+
+## Regras do Portal do Cliente
+
+- Usuario `CLIENT` nao recebe permissao administrativa (`clients.update`, `contracts.update`, `users.*`, etc.).
+- Acesso ao portal depende de permissionamento + membership ativo.
+- Endpoints de portal validam isolamento por cliente e bloqueiam acesso horizontal entre empresas.
+- Gestao de membership e feita apenas por perfis administrativos com `clientPortalUsers.manage`.

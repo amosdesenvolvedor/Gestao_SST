@@ -15,18 +15,25 @@ import { useAuth } from '@/features/auth/auth-context'
 import { ApiError } from '@/lib/api-client'
 import {
   activateClientContact,
+  activateClientMembership,
   activateEstablishment,
+  createClientPortalAccess,
   createClientContact,
   createEstablishment,
+  deactivateClientMembership,
   deactivateClientContact,
   deactivateEstablishment,
   getClientById,
+  linkExistingClientPortalUser,
   listClientContacts,
   listClientEstablishments,
+  listClientPortalUsers,
+  removeClientMembership,
   setHeadquarters,
   setPrimaryContact,
 } from '@/services/clients.service'
 import { listContractsByClient } from '@/services/contracts.service'
+import type { ClientMembership } from '@/types/clients'
 
 function toApiMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -78,6 +85,14 @@ export function ClientDetailPage() {
     isPrimary: false,
   })
 
+  const [portalAccessForm, setPortalAccessForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  })
+  const [existingClientUserId, setExistingClientUserId] = useState('')
+
   const clientQuery = useQuery({
     queryKey: ['client', id],
     queryFn: () => getClientById(id as string),
@@ -110,11 +125,84 @@ export function ClientDetailPage() {
     enabled: Boolean(id),
   })
 
+  const portalUsersQuery = useQuery({
+    queryKey: ['client-portal-users', id],
+    queryFn: () => listClientPortalUsers(id as string),
+    enabled: Boolean(id) && can('clientPortalUsers.read'),
+  })
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['client', id] })
     queryClient.invalidateQueries({ queryKey: ['client-establishments', id] })
     queryClient.invalidateQueries({ queryKey: ['client-contacts', id] })
+    queryClient.invalidateQueries({ queryKey: ['client-portal-users', id] })
   }
+
+  const createPortalAccessMutation = useMutation({
+    mutationFn: () =>
+      createClientPortalAccess(id as string, {
+        name: portalAccessForm.name,
+        email: portalAccessForm.email,
+        password: portalAccessForm.password,
+        confirmPassword: portalAccessForm.confirmPassword,
+      }),
+    onSuccess() {
+      setFeedback('Acesso ao portal criado e vinculado com sucesso.')
+      setError(null)
+      setPortalAccessForm({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+      })
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const linkExistingPortalUserMutation = useMutation({
+    mutationFn: () => linkExistingClientPortalUser(id as string, existingClientUserId),
+    onSuccess() {
+      setFeedback('Usuario CLIENT vinculado ao portal com sucesso.')
+      setError(null)
+      setExistingClientUserId('')
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const membershipStatusMutation = useMutation({
+    mutationFn: async ({ membershipId, active }: { membershipId: string; active: boolean }) => {
+      if (active) {
+        return activateClientMembership(membershipId)
+      }
+      return deactivateClientMembership(membershipId)
+    },
+    onSuccess(_, variables) {
+      setFeedback(variables.active ? 'Vinculo ativado.' : 'Vinculo desativado.')
+      setError(null)
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const removeMembershipMutation = useMutation({
+    mutationFn: (membershipId: string) => removeClientMembership(membershipId),
+    onSuccess() {
+      setFeedback('Vinculo removido.')
+      setError(null)
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
 
   const createEstablishmentMutation = useMutation({
     mutationFn: () =>
@@ -238,12 +326,16 @@ export function ClientDetailPage() {
   const establishments = establishmentsQuery.data?.data ?? []
   const contacts = contactsQuery.data?.data ?? []
   const contracts = contractsQuery.data?.data ?? []
+  const portalMemberships: ClientMembership[] = portalUsersQuery.data?.data ?? []
 
   const loading =
     clientQuery.isLoading ||
     establishmentsQuery.isLoading ||
     contactsQuery.isLoading ||
-    contractsQuery.isLoading
+    contractsQuery.isLoading ||
+    (can('clientPortalUsers.read') && portalUsersQuery.isLoading)
+
+  const canManagePortalUsers = can('clientPortalUsers.manage')
 
   const canManageEstablishments = useMemo(
     () =>
@@ -607,6 +699,146 @@ export function ClientDetailPage() {
           </Link>
         </div>
       </Card>
+
+      {can('clientPortalUsers.read') ? (
+        <Card title="Acesso ao portal" subtitle="Vinculos de usuarios CLIENT autorizados para este cliente.">
+          {portalMemberships.length === 0 ? (
+            <EmptyState title="Sem acessos vinculados" description="Crie ou vincule usuarios CLIENT para acesso ao portal." />
+          ) : (
+            <div className="space-y-3">
+              {portalMemberships.map((membership) => (
+                <div key={membership.id} className="rounded-xl border border-slate-200 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-slate-900">{membership.user.name || 'Sem nome'}</p>
+                      <p className="text-sm text-slate-600">{membership.user.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge>{membership.user.isActive ? 'USUARIO ATIVO' : 'USUARIO INATIVO'}</Badge>
+                      <Badge>{membership.isActive ? 'VINCULO ATIVO' : 'VINCULO INATIVO'}</Badge>
+                    </div>
+                  </div>
+
+                  {canManagePortalUsers ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {!membership.isActive ? (
+                        <Button
+                          variant="secondary"
+                          onClick={() =>
+                            membershipStatusMutation.mutate({
+                              membershipId: membership.id,
+                              active: true,
+                            })
+                          }
+                        >
+                          Ativar vinculo
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="danger"
+                          onClick={() =>
+                            membershipStatusMutation.mutate({
+                              membershipId: membership.id,
+                              active: false,
+                            })
+                          }
+                        >
+                          Desativar vinculo
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          if (window.confirm('Confirma a remocao logica deste vinculo?')) {
+                            removeMembershipMutation.mutate(membership.id)
+                          }
+                        }}
+                      >
+                        Remover vinculo
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {canManagePortalUsers ? (
+            <>
+              <form
+                className="mt-4 grid gap-3 md:grid-cols-2"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  createPortalAccessMutation.mutate()
+                }}
+              >
+                <Input
+                  placeholder="Nome"
+                  value={portalAccessForm.name}
+                  onChange={(event) => setPortalAccessForm((state) => ({ ...state, name: event.target.value }))}
+                  required
+                />
+                <Input
+                  placeholder="E-mail"
+                  type="email"
+                  value={portalAccessForm.email}
+                  onChange={(event) => setPortalAccessForm((state) => ({ ...state, email: event.target.value }))}
+                  required
+                />
+                <Input
+                  placeholder="Senha inicial"
+                  type="password"
+                  value={portalAccessForm.password}
+                  onChange={(event) => setPortalAccessForm((state) => ({ ...state, password: event.target.value }))}
+                  required
+                />
+                <Input
+                  placeholder="Confirmar senha"
+                  type="password"
+                  value={portalAccessForm.confirmPassword}
+                  onChange={(event) =>
+                    setPortalAccessForm((state) => ({ ...state, confirmPassword: event.target.value }))
+                  }
+                  required
+                />
+                <div className="md:col-span-2">
+                  <Button
+                    type="submit"
+                    disabled={
+                      createPortalAccessMutation.isPending ||
+                      !portalAccessForm.name.trim() ||
+                      !portalAccessForm.email.trim() ||
+                      !portalAccessForm.password.trim() ||
+                      !portalAccessForm.confirmPassword.trim()
+                    }
+                  >
+                    {createPortalAccessMutation.isPending ? 'Criando acesso...' : 'Criar acesso CLIENT'}
+                  </Button>
+                </div>
+              </form>
+
+              <form
+                className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  linkExistingPortalUserMutation.mutate()
+                }}
+              >
+                <Input
+                  placeholder="ID de usuario CLIENT existente"
+                  value={existingClientUserId}
+                  onChange={(event) => setExistingClientUserId(event.target.value)}
+                  required
+                />
+                <Button type="submit" disabled={linkExistingPortalUserMutation.isPending || !existingClientUserId.trim()}>
+                  {linkExistingPortalUserMutation.isPending ? 'Vinculando...' : 'Vincular usuario existente'}
+                </Button>
+              </form>
+            </>
+          ) : null}
+        </Card>
+      ) : null}
     </div>
   )
 }

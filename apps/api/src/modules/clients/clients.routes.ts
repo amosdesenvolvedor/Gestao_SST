@@ -1,21 +1,27 @@
 import type { FastifyInstance } from 'fastify'
 import { authorizePermissions } from '../../plugins/guards.js'
 import {
+  activateClientMembershipService,
   activateClientContactService,
   activateClientService,
   activateEstablishmentService,
+  createClientPortalAccessService,
   createClientContactService,
   createClientService,
   createEstablishmentService,
+  deactivateClientMembershipService,
   deactivateClientContactService,
   deactivateClientService,
   deactivateEstablishmentService,
   getClientByIdService,
   getClientContactByIdService,
   getEstablishmentByIdService,
+  linkExistingClientPortalUserService,
+  listClientPortalUsersService,
   listClientContactsService,
   listClientEstablishmentsService,
   listClientsService,
+  removeClientMembershipService,
   setClientContactAsPrimaryService,
   setEstablishmentAsHeadquartersService,
   updateClientContactService,
@@ -25,10 +31,13 @@ import {
 import {
   clientContactIdParamsSchema,
   clientIdParamsSchema,
+  clientMembershipIdParamsSchema,
+  createClientPortalAccessBodySchema,
   createClientBodySchema,
   createClientContactBodySchema,
   createEstablishmentBodySchema,
   establishmentIdParamsSchema,
+  linkExistingClientPortalUserBodySchema,
   listClientContactsByClientQuerySchema,
   listClientsQuerySchema,
   listEstablishmentsByClientQuerySchema,
@@ -42,6 +51,10 @@ function handleClientsError(error: unknown, reply: { code: (status: number) => {
 
   if (message.includes('nao encontrado')) {
     return reply.code(404).send({ message })
+  }
+
+  if (message.includes('Acesso negado')) {
+    return reply.code(403).send({ message })
   }
 
   if (message.includes('ja possui matriz') || message.includes('ja cadastrado')) {
@@ -520,6 +533,150 @@ export async function clientsRoutes(app: FastifyInstance): Promise<void> {
       try {
         const contact = await setClientContactAsPrimaryService(request.authUser, parsed.data.id)
         return reply.send({ contact })
+      } catch (error) {
+        return handleClientsError(error, reply)
+      }
+    },
+  )
+
+  app.get(
+    '/clients/:id/portal-users',
+    { preHandler: [authorizePermissions(['clientPortalUsers.read'])] },
+    async (request, reply) => {
+      const parsed = clientIdParamsSchema.safeParse(request.params)
+
+      if (!parsed.success) {
+        return reply.code(400).send({ message: 'Identificador invalido.' })
+      }
+
+      if (!request.authUser) {
+        return reply.code(401).send({ message: 'Nao autenticado.' })
+      }
+
+      try {
+        const result = await listClientPortalUsersService(request.authUser, parsed.data.id)
+        return reply.send(result)
+      } catch (error) {
+        return handleClientsError(error, reply)
+      }
+    },
+  )
+
+  app.post(
+    '/clients/:id/portal-users/create-access',
+    { preHandler: [authorizePermissions(['clientPortalUsers.manage'])] },
+    async (request, reply) => {
+      const parsedParams = clientIdParamsSchema.safeParse(request.params)
+      const parsedBody = createClientPortalAccessBodySchema.safeParse(request.body)
+
+      if (!parsedParams.success || !parsedBody.success) {
+        return reply.code(400).send({ message: 'Dados invalidos.' })
+      }
+
+      if (!request.authUser) {
+        return reply.code(401).send({ message: 'Nao autenticado.' })
+      }
+
+      try {
+        const result = await createClientPortalAccessService(request.authUser, parsedParams.data.id, parsedBody.data)
+        return reply.code(201).send(result)
+      } catch (error) {
+        return handleClientsError(error, reply)
+      }
+    },
+  )
+
+  app.post(
+    '/clients/:id/portal-users/link-existing',
+    { preHandler: [authorizePermissions(['clientPortalUsers.manage'])] },
+    async (request, reply) => {
+      const parsedParams = clientIdParamsSchema.safeParse(request.params)
+      const parsedBody = linkExistingClientPortalUserBodySchema.safeParse(request.body)
+
+      if (!parsedParams.success || !parsedBody.success) {
+        return reply.code(400).send({ message: 'Dados invalidos.' })
+      }
+
+      if (!request.authUser) {
+        return reply.code(401).send({ message: 'Nao autenticado.' })
+      }
+
+      try {
+        const result = await linkExistingClientPortalUserService(
+          request.authUser,
+          parsedParams.data.id,
+          parsedBody.data.userId,
+        )
+        return reply.code(201).send(result)
+      } catch (error) {
+        return handleClientsError(error, reply)
+      }
+    },
+  )
+
+  app.post(
+    '/client-memberships/:id/activate',
+    { preHandler: [authorizePermissions(['clientPortalUsers.manage'])] },
+    async (request, reply) => {
+      const parsed = clientMembershipIdParamsSchema.safeParse(request.params)
+
+      if (!parsed.success) {
+        return reply.code(400).send({ message: 'Identificador invalido.' })
+      }
+
+      if (!request.authUser) {
+        return reply.code(401).send({ message: 'Nao autenticado.' })
+      }
+
+      try {
+        const result = await activateClientMembershipService(request.authUser, parsed.data.id)
+        return reply.send(result)
+      } catch (error) {
+        return handleClientsError(error, reply)
+      }
+    },
+  )
+
+  app.post(
+    '/client-memberships/:id/deactivate',
+    { preHandler: [authorizePermissions(['clientPortalUsers.manage'])] },
+    async (request, reply) => {
+      const parsed = clientMembershipIdParamsSchema.safeParse(request.params)
+
+      if (!parsed.success) {
+        return reply.code(400).send({ message: 'Identificador invalido.' })
+      }
+
+      if (!request.authUser) {
+        return reply.code(401).send({ message: 'Nao autenticado.' })
+      }
+
+      try {
+        const result = await deactivateClientMembershipService(request.authUser, parsed.data.id)
+        return reply.send(result)
+      } catch (error) {
+        return handleClientsError(error, reply)
+      }
+    },
+  )
+
+  app.post(
+    '/client-memberships/:id/remove',
+    { preHandler: [authorizePermissions(['clientPortalUsers.manage'])] },
+    async (request, reply) => {
+      const parsed = clientMembershipIdParamsSchema.safeParse(request.params)
+
+      if (!parsed.success) {
+        return reply.code(400).send({ message: 'Identificador invalido.' })
+      }
+
+      if (!request.authUser) {
+        return reply.code(401).send({ message: 'Nao autenticado.' })
+      }
+
+      try {
+        await removeClientMembershipService(request.authUser, parsed.data.id)
+        return reply.code(204).send()
       } catch (error) {
         return handleClientsError(error, reply)
       }

@@ -3,8 +3,10 @@ import {
   clientStatusSchema,
   documentTypeSchema,
   establishmentStatusSchema,
+  roleSchema,
 } from '@gestao-sst/shared'
 import { z } from 'zod'
+import { passwordPolicySchema } from '../../shared/password-policy.js'
 
 const activeFilterSchema = z.enum(['active', 'inactive'])
 
@@ -136,6 +138,36 @@ export const listClientContactsByClientQuerySchema = z.object({
 
 export const clientContactIdParamsSchema = z.object({
   id: z.string().trim().min(1),
+})
+
+export const clientMembershipIdParamsSchema = z.object({
+  id: z.string().trim().min(1),
+})
+
+export const linkExistingClientPortalUserBodySchema = z.object({
+  userId: z.string().trim().min(1),
+})
+
+export const createClientPortalAccessBodySchema = z
+  .object({
+    name: z.string().trim().min(2).max(120),
+    email: z.string().trim().email(),
+    password: passwordPolicySchema,
+    confirmPassword: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['confirmPassword'],
+        message: 'As senhas nao conferem.',
+      })
+    }
+  })
+
+export const createClientPortalMembershipBodySchema = z.object({
+  userId: z.string().trim().min(1),
+  role: roleSchema.optional(),
 })
 
 export const createClientContactBodySchema = z.object({

@@ -76,6 +76,12 @@ Para evolucoes de schema da Fase 04:
 npm run prisma:migrate -w @gestao-sst/api -- --name service_catalog_contracts
 ```
 
+Para evolucoes de schema da Fase 05:
+
+```bash
+npm run prisma:migrate -w @gestao-sst/api -- --name client_portal_memberships
+```
+
 ### DATABASE_URL
 
 Formato esperado:
@@ -265,3 +271,35 @@ npm run build
 - Tela de detalhe do contrato: `Contratos > Detalhes` (`/contratos/:id`) com secoes de status, servicos e estabelecimentos.
 - Tela de catalogo de servicos: `Configuracoes > Servicos` (`/configuracoes/servicos`).
 - Integracao do detalhe do cliente com listagem de contratos e atalho para criacao contextual.
+
+## Fase 05 (Portal do Cliente e Central Visual de Servicos)
+
+### Modulos implementados
+
+- Portal do cliente separado da experiencia administrativa (`/portal/*`).
+- Relacionamento explicito `User <-> Client` via `ClientMembership`.
+- API dedicada e isolada para cliente em `/api/v1/client-portal/*`.
+- Gestao administrativa de acessos ao portal na ficha de cliente.
+- Selecao de empresa (quando multi-membership) e contexto de estabelecimentos no portal.
+- Central visual de servicos derivada dinamicamente de contratos e servicos contratados.
+
+### Endpoints principais da fase
+
+- `GET /api/v1/client-portal/context`
+- `GET /api/v1/client-portal/services`
+- `GET /api/v1/client-portal/services/:code`
+- `GET /api/v1/client-portal/contracts`
+- `GET /api/v1/clients/:id/portal-users`
+- `POST /api/v1/clients/:id/portal-users/create-access`
+- `POST /api/v1/clients/:id/portal-users/link-existing`
+- `POST /api/v1/client-memberships/:id/activate`
+- `POST /api/v1/client-memberships/:id/deactivate`
+- `POST /api/v1/client-memberships/:id/remove`
+
+### Regras centrais do portal
+
+- Usuario `CLIENT` acessa somente clientes com `ClientMembership.isActive=true`.
+- Backend valida membership em toda requisicao de portal (anti-IDOR/horizontal access).
+- Cliente `SUSPENDED`/`INACTIVE` opera em modo informativo (sem modulos operacionais).
+- Cards exibem apenas servicos de contratos com status operacionais (`SIGNED`, `ACTIVE`, `EXPIRING`) e itens ativos.
+- Servicos repetidos em contratos diferentes sao agrupados por `serviceCodeSnapshot`.

@@ -21,46 +21,51 @@ Contratos e servicos
 Status: concluida (catalogo de servicos, contratos, servicos contratados, estabelecimentos abrangidos, RBAC e auditoria).
 
 ## FASE 05
-Financeiro
+Portal do Cliente e Central Visual de Servicos
+
+Status: concluida (ClientMembership, API isolada do portal, layout dedicado e gestao administrativa de acessos).
 
 ## FASE 06
-Nucleo tecnico SST
+Financeiro
 
 ## FASE 07
-Templates por segmento
+Nucleo tecnico SST
 
 ## FASE 08
-PGR
+Templates por segmento
 
 ## FASE 09
-PCMSO
+PGR
 
 ## FASE 10
-LTCAT
+PCMSO
 
 ## FASE 11
-Insalubridade
+LTCAT
 
 ## FASE 12
-Periculosidade
+Insalubridade
 
 ## FASE 13
-Relatorio Analitico
+Periculosidade
 
 ## FASE 14
-Engine de documentos e PDF
+Relatorio Analitico
 
 ## FASE 15
-Assinaturas e autenticidade
+Engine de documentos e PDF
 
 ## FASE 16
-IA
+Assinaturas e autenticidade
 
 ## FASE 17
-Biblioteca normativa
+IA
 
 ## FASE 18
-Dashboards, notificacoes e relatorios
+Biblioteca normativa
 
 ## FASE 19
+Dashboards, notificacoes e relatorios
+
+## FASE 20
 Hardening, LGPD, backup e producao

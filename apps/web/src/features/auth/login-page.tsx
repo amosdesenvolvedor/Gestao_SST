@@ -29,13 +29,13 @@ export function LoginPage() {
   })
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/" replace />
   }
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await login(values)
-      navigate('/dashboard')
+      const user = await login(values)
+      navigate(user.role === 'CLIENT' ? '/portal' : '/dashboard')
     } catch {
       setError('root', { message: 'Credenciais invalidas.' })
     }

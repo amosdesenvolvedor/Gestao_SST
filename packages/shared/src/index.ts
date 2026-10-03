@@ -63,6 +63,12 @@ export const permissions = [
   'contractServices.manage',
   'contractEstablishments.read',
   'contractEstablishments.manage',
+  'clientPortal.access',
+  'clientPortal.services.read',
+  'clientPortal.contracts.read',
+  'clientPortal.establishments.read',
+  'clientPortalUsers.read',
+  'clientPortalUsers.manage',
 ] as const
 
 export const permissionSchema = z.enum(permissions)
@@ -118,6 +124,8 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'contractServices.manage',
     'contractEstablishments.read',
     'contractEstablishments.manage',
+    'clientPortalUsers.read',
+    'clientPortalUsers.manage',
   ],
   SST_MANAGER: [
     'dashboard.read',
@@ -140,6 +148,8 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'contractServices.manage',
     'contractEstablishments.read',
     'contractEstablishments.manage',
+    'clientPortalUsers.read',
+    'clientPortalUsers.manage',
   ],
   SAFETY_ENGINEER: [
     'dashboard.read',
@@ -187,6 +197,7 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'contracts.read',
     'contractServices.read',
     'contractEstablishments.read',
+    'clientPortalUsers.read',
   ],
   FINANCIAL: [
     'dashboard.read',
@@ -196,7 +207,12 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'contractServices.read',
     'contractEstablishments.read',
   ],
-  CLIENT: ['dashboard.read'],
+  CLIENT: [
+    'clientPortal.access',
+    'clientPortal.services.read',
+    'clientPortal.contracts.read',
+    'clientPortal.establishments.read',
+  ],
   VIEWER: [
     'dashboard.read',
     'professionals.read',

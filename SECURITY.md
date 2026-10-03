@@ -73,3 +73,21 @@
 - Bloqueio de alteracoes estruturais em contratos assinados/ativos/encerrados para reduzir risco operacional.
 - Validacao de pertencimento de estabelecimento ao mesmo cliente do contrato.
 - Snapshot do catalogo em `ContractService` para trilha historica e resiliencia a alteracoes futuras no catalogo.
+
+## Isolamento do Portal do Cliente (Fase 05)
+
+- Acesso do portal separado por API dedicada (`/api/v1/client-portal/*`).
+- Modelo de autorizacao horizontal por `ClientMembership` (user-client), sem inferencia por e-mail/CNPJ/nome.
+- Toda requisicao de portal valida membership ativo em runtime.
+- IDs informados pelo frontend (`clientId`, `establishmentId`, `serviceCode`) passam por validacao de escopo antes de consulta.
+- Tentativas de acesso cruzado entre clientes (IDOR) retornam 403/404 sem vazamento de dados.
+
+## Ciclo de Vida de Membership
+
+- Eventos auditados:
+	- `CLIENT_MEMBERSHIP_CREATED`
+	- `CLIENT_MEMBERSHIP_ACTIVATED`
+	- `CLIENT_MEMBERSHIP_DEACTIVATED`
+	- `CLIENT_MEMBERSHIP_REMOVED`
+- Membership inativo bloqueia acesso mesmo com JWT valido.
+- Usuario inativo continua bloqueado pelo guard de autenticacao existente.

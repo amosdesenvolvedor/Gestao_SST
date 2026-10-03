@@ -23,6 +23,14 @@ React
 - Layout autenticado com sidebar + header + conteudo.
 - Rotas privadas com protecao por autenticacao.
 
+## Dois Contextos de Interface
+
+- Admin Portal (`/dashboard`, `/clientes`, `/contratos`, ...): operacao interna da empresa SST.
+- Client Portal (`/portal`, `/portal/servicos`, `/portal/documentos`, `/portal/empresa`): experiencia simplificada para role `CLIENT`.
+- Layouts separados:
+	- `AdminLayout` preservado.
+	- `ClientPortalLayout` dedicado com identidade grafite/cinza/branco.
+
 ## Backend
 
 Estrutura principal:
@@ -41,6 +49,7 @@ Estrutura principal:
 - `clients`: clientes, estabelecimentos e contatos.
 - `service-catalog`: catalogo de servicos padronizados.
 - `contracts`: contratos, servicos contratados e estabelecimentos abrangidos.
+- `client-portal`: contexto seguro do portal, central visual de servicos e contratos de leitura.
 
 ## Contratos e Catalogo (Fase 04)
 
@@ -49,6 +58,13 @@ Estrutura principal:
 - Datas civis (`YYYY-MM-DD`) convertidas para UTC no backend para evitar ambiguidade de fuso.
 - Snapshot de servico no vinculo contratual (codigo/nome/categoria/descricao) para preservar historico.
 - Regras de status por maquina de estados e bloqueio de alteracoes estruturais em contratos assinados/ativos/encerrados.
+
+## Isolamento de Portal (Fase 05)
+
+- Vinculo explicito de acesso via `ClientMembership` (N:N entre `User` e `Client`).
+- API isolada para clientes em `/api/v1/client-portal/*`.
+- Backend nunca confia apenas no `clientId` enviado pelo frontend; valida membership ativo em runtime.
+- Protecao anti-IDOR aplicada para `clientId`, `establishmentId` e `serviceCode`.
 
 ## Frontend (Rotas de Negocio)
 

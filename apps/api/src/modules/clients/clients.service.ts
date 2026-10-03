@@ -11,19 +11,26 @@ import type {
   DocumentType,
   EstablishmentStatus,
   Prisma,
+  Role,
 } from '@prisma/client'
+import { hashPassword } from '../../lib/password.js'
 import { prisma } from '../../lib/prisma.js'
 import type { AuthUser } from '../../plugins/auth.js'
 import { createAuditLog } from '../../shared/audit.js'
 import { makePagination } from '../../shared/pagination.js'
+import { validatePasswordPolicy } from '../../shared/password-policy.js'
 import {
   countClientContactsByClient,
   countClients,
   countEstablishmentsByClient,
   createClient,
   createClientContact,
+  createClientMembership,
+  createClientPortalUser,
   createEstablishment,
   findClientById,
+  findClientMembershipById,
+  findClientMembershipByUserAndClient,
   findClientByTaxIdNumber,
   findClientContactById,
   findClientContactRecordById,
@@ -32,13 +39,18 @@ import {
   findEstablishmentByTaxIdNumber,
   findEstablishmentRecordById,
   findHeadquartersByClientId,
+  findUserByEmailForClientPortal,
+  findUserByIdForClientPortal,
   listClientContactsByClient,
+  listClientMembershipsByClient,
   listClients,
   listEstablishmentsByClient,
+  removeClientMembership,
   unsetHeadquarters,
   unsetPrimaryContact,
   updateClient,
   updateClientContact,
+  updateClientMembership,
   updateEstablishment,
   type ClientContactRecord,
   type ClientRecord,
@@ -175,11 +187,52 @@ type UpdateClientContactInput = {
   isActive?: boolean
 }
 
+type CreateClientPortalAccessInput = {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+}
+
 function normalizeEmail(email?: string | null): string | null {
   if (!email) {
     return null
   }
   return email.trim().toLowerCase()
+}
+
+function assertCanManageClientPortalUsers(actor: AuthUser): void {
+  if (!actor.permissions.includes('clientPortalUsers.manage')) {
+    throw new Error('Acesso negado para gerir usuarios do portal do cliente.')
+  }
+}
+
+function assertCanReadClientPortalUsers(actor: AuthUser): void {
+  if (!actor.permissions.includes('clientPortalUsers.read')) {
+    throw new Error('Acesso negado para consultar usuarios do portal do cliente.')
+  }
+}
+
+function mapClientMembership(item: {
+  id: string
+  userId: string
+  clientId: string
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+  user: {
+    id: string
+    name: string | null
+    email: string
+    role: Role
+    isActive: boolean
+  }
+}) {
+  return {
+    ...item,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
+  }
 }
 
 function normalizeDocForType(type?: DocumentType | null, value?: string | null): string | null {
@@ -953,4 +1006,246 @@ export async function setClientContactAsPrimaryService(actor: AuthUser, contactI
   })
 
   return mapClientContact(updated)
+}
+
+export async function listClientPortalUsersService(actor: AuthUser, clientId: string) {
+  assertCanReadClientPortalUsers(actor)
+
+  const client = await findClientById(clientId)
+  if (!client) {
+    throw new Error('Cliente nao encontrado.')
+  }
+
+  const data = await listClientMembershipsByClient(clientId)
+
+  return {
+    data: data.map(mapClientMembership),
+  }
+}
+
+export async function createClientPortalAccessService(
+  actor: AuthUser,
+  clientId: string,
+  input: CreateClientPortalAccessInput,
+) {
+  assertCanManageClientPortalUsers(actor)
+
+  const client = await findClientById(clientId)
+  if (!client) {
+    throw new Error('Cliente nao encontrado.')
+  }
+
+  if (input.password !== input.confirmPassword) {
+    throw new Error('As senhas nao conferem.')
+  }
+
+  validatePasswordPolicy(input.password)
+
+  const normalizedEmail = normalizeEmail(input.email)
+  if (!normalizedEmail) {
+    throw new Error('E-mail invalido.')
+  }
+
+  const existing = await findUserByEmailForClientPortal(normalizedEmail)
+  if (existing) {
+    throw new Error('Ja existe usuario com este e-mail.')
+  }
+
+  const passwordHash = await hashPassword(input.password)
+
+  const created = await prisma.$transaction(async (tx) => {
+    const user = await createClientPortalUser(
+      {
+        name: input.name,
+        email: normalizedEmail,
+        role: 'CLIENT',
+        passwordHash,
+        isActive: true,
+      },
+      tx,
+    )
+
+    const membership = await createClientMembership(
+      {
+        userId: user.id,
+        clientId,
+        isActive: true,
+      },
+      tx,
+    )
+
+    return { user, membership }
+  })
+
+  await createAuditLog({
+    actorUserId: actor.id,
+    action: 'CLIENT_MEMBERSHIP_CREATED',
+    entity: 'ClientMembership',
+    entityId: created.membership.id,
+    metadata: {
+      clientId,
+      userId: created.user.id,
+      mode: 'create_user',
+    },
+  })
+
+  return {
+    user: {
+      ...created.user,
+      createdAt: created.user.createdAt.toISOString(),
+      updatedAt: created.user.updatedAt.toISOString(),
+      lastLoginAt: created.user.lastLoginAt ? created.user.lastLoginAt.toISOString() : null,
+    },
+    membership: mapClientMembership(created.membership),
+  }
+}
+
+export async function linkExistingClientPortalUserService(actor: AuthUser, clientId: string, userId: string) {
+  assertCanManageClientPortalUsers(actor)
+
+  const client = await findClientById(clientId)
+  if (!client) {
+    throw new Error('Cliente nao encontrado.')
+  }
+
+  const user = await findUserByIdForClientPortal(userId)
+  if (!user) {
+    throw new Error('Usuario nao encontrado.')
+  }
+
+  if (user.role !== 'CLIENT') {
+    throw new Error('Apenas usuarios com role CLIENT podem ser vinculados ao portal.')
+  }
+
+  if (!user.isActive) {
+    throw new Error('Usuario inativo nao pode ser vinculado ao portal.')
+  }
+
+  const existingMembership = await findClientMembershipByUserAndClient(userId, clientId)
+
+  if (existingMembership) {
+    if (existingMembership.isActive) {
+      throw new Error('Usuario CLIENT ja vinculado a este cliente.')
+    }
+
+    const reactivated = await updateClientMembership(existingMembership.id, {
+      isActive: true,
+    })
+
+    await createAuditLog({
+      actorUserId: actor.id,
+      action: 'CLIENT_MEMBERSHIP_ACTIVATED',
+      entity: 'ClientMembership',
+      entityId: reactivated.id,
+      metadata: {
+        clientId,
+        userId,
+        mode: 'reactivate_existing',
+      },
+    })
+
+    return {
+      membership: mapClientMembership(reactivated),
+    }
+  }
+
+  const created = await createClientMembership({
+    userId,
+    clientId,
+    isActive: true,
+  })
+
+  await createAuditLog({
+    actorUserId: actor.id,
+    action: 'CLIENT_MEMBERSHIP_CREATED',
+    entity: 'ClientMembership',
+    entityId: created.id,
+    metadata: {
+      clientId,
+      userId,
+      mode: 'link_existing',
+    },
+  })
+
+  return {
+    membership: mapClientMembership(created),
+  }
+}
+
+export async function activateClientMembershipService(actor: AuthUser, membershipId: string) {
+  assertCanManageClientPortalUsers(actor)
+
+  const membership = await findClientMembershipById(membershipId)
+  if (!membership) {
+    throw new Error('Vinculo de portal nao encontrado.')
+  }
+
+  const updated = await updateClientMembership(membership.id, {
+    isActive: true,
+  })
+
+  await createAuditLog({
+    actorUserId: actor.id,
+    action: 'CLIENT_MEMBERSHIP_ACTIVATED',
+    entity: 'ClientMembership',
+    entityId: updated.id,
+    metadata: {
+      clientId: updated.clientId,
+      userId: updated.userId,
+    },
+  })
+
+  return {
+    membership: mapClientMembership(updated),
+  }
+}
+
+export async function deactivateClientMembershipService(actor: AuthUser, membershipId: string) {
+  assertCanManageClientPortalUsers(actor)
+
+  const membership = await findClientMembershipById(membershipId)
+  if (!membership) {
+    throw new Error('Vinculo de portal nao encontrado.')
+  }
+
+  const updated = await updateClientMembership(membership.id, {
+    isActive: false,
+  })
+
+  await createAuditLog({
+    actorUserId: actor.id,
+    action: 'CLIENT_MEMBERSHIP_DEACTIVATED',
+    entity: 'ClientMembership',
+    entityId: updated.id,
+    metadata: {
+      clientId: updated.clientId,
+      userId: updated.userId,
+    },
+  })
+
+  return {
+    membership: mapClientMembership(updated),
+  }
+}
+
+export async function removeClientMembershipService(actor: AuthUser, membershipId: string) {
+  assertCanManageClientPortalUsers(actor)
+
+  const membership = await findClientMembershipById(membershipId)
+  if (!membership) {
+    throw new Error('Vinculo de portal nao encontrado.')
+  }
+
+  await removeClientMembership(membership.id)
+
+  await createAuditLog({
+    actorUserId: actor.id,
+    action: 'CLIENT_MEMBERSHIP_REMOVED',
+    entity: 'ClientMembership',
+    entityId: membership.id,
+    metadata: {
+      clientId: membership.clientId,
+      userId: membership.userId,
+    },
+  })
 }

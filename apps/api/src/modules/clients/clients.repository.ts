@@ -61,9 +61,28 @@ const contactSelect = {
   updatedAt: true,
 } as const
 
+const clientMembershipSelect = {
+  id: true,
+  userId: true,
+  clientId: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+  user: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isActive: true,
+    },
+  },
+} as const
+
 export type ClientRecord = Prisma.ClientGetPayload<{ select: typeof clientSelect }>
 export type EstablishmentRecord = Prisma.EstablishmentGetPayload<{ select: typeof establishmentSelect }>
 export type ClientContactRecord = Prisma.ClientContactGetPayload<{ select: typeof contactSelect }>
+export type ClientMembershipRecord = Prisma.ClientMembershipGetPayload<{ select: typeof clientMembershipSelect }>
 
 type DbClient = Prisma.TransactionClient | typeof prisma
 
@@ -283,4 +302,73 @@ export async function updateClientContact(
   tx?: Prisma.TransactionClient,
 ): Promise<ClientContactRecord> {
   return db(tx).clientContact.update({ where: { id }, data, select: contactSelect })
+}
+
+export async function listClientMembershipsByClient(clientId: string): Promise<ClientMembershipRecord[]> {
+  return prisma.clientMembership.findMany({
+    where: { clientId },
+    orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+    select: clientMembershipSelect,
+  })
+}
+
+export async function findClientMembershipById(id: string, tx?: Prisma.TransactionClient) {
+  return db(tx).clientMembership.findUnique({ where: { id } })
+}
+
+export async function findClientMembershipByUserAndClient(userId: string, clientId: string, tx?: Prisma.TransactionClient) {
+  return db(tx).clientMembership.findUnique({
+    where: {
+      userId_clientId: {
+        userId,
+        clientId,
+      },
+    },
+  })
+}
+
+export async function createClientMembership(
+  data: Prisma.ClientMembershipUncheckedCreateInput,
+  tx?: Prisma.TransactionClient,
+): Promise<ClientMembershipRecord> {
+  return db(tx).clientMembership.create({ data, select: clientMembershipSelect })
+}
+
+export async function updateClientMembership(
+  id: string,
+  data: Prisma.ClientMembershipUpdateInput,
+  tx?: Prisma.TransactionClient,
+): Promise<ClientMembershipRecord> {
+  return db(tx).clientMembership.update({ where: { id }, data, select: clientMembershipSelect })
+}
+
+export async function removeClientMembership(id: string, tx?: Prisma.TransactionClient): Promise<void> {
+  await db(tx).clientMembership.delete({ where: { id } })
+}
+
+export async function findUserByEmailForClientPortal(email: string, tx?: Prisma.TransactionClient) {
+  return db(tx).user.findUnique({ where: { email: email.toLowerCase() } })
+}
+
+export async function findUserByIdForClientPortal(userId: string, tx?: Prisma.TransactionClient) {
+  return db(tx).user.findUnique({ where: { id: userId } })
+}
+
+export async function createClientPortalUser(
+  data: Prisma.UserCreateInput,
+  tx?: Prisma.TransactionClient,
+) {
+  return db(tx).user.create({
+    data,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      lastLoginAt: true,
+    },
+  })
 }

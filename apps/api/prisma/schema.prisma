@@ -89,6 +89,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   professional Professional?
+  clientMemberships ClientMembership[]
 
   @@index([role])
 }
@@ -112,9 +113,26 @@ model Client {
   establishments Establishment[]
   contacts       ClientContact[]
   contracts      Contract[]
+  memberships    ClientMembership[]
 
   @@index([legalName])
   @@index([status])
+}
+
+model ClientMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  clientId  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, clientId])
+  @@index([userId, isActive])
+  @@index([clientId, isActive])
 }
 
 model Establishment {
