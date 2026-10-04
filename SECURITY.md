@@ -91,3 +91,32 @@
 	- `CLIENT_MEMBERSHIP_REMOVED`
 - Membership inativo bloqueia acesso mesmo com JWT valido.
 - Usuario inativo continua bloqueado pelo guard de autenticacao existente.
+
+## Seguranca Financeira (Fase 06)
+
+- Separacao explicita entre obrigacao (`Installment`), cobranca (`Charge`) e recebimento (`Payment`).
+- Operacoes financeiras criticas em transacao `Serializable` para reduzir risco de estado parcial e corrida.
+- Overpayment bloqueado no backend com validacao de saldo derivado no momento da escrita.
+- Pagamento confirmado nao e deletado; reversao marca estado e preserva trilha.
+- Cancelamento de parcela com pagamento confirmado e bloqueado.
+- Campos de idempotencia (`idempotencyKey`) e referencia externa (`externalReference`/`externalId`) preparados para webhooks futuros sem duplicidade de recebimento.
+- `dueDate` (civil) separado de `paidAt` (instante UTC) para evitar drift de fuso.
+- Auditoria financeira com eventos:
+	- `FINANCIAL_PLAN_CREATED`
+	- `INSTALLMENT_UPDATED`
+	- `INSTALLMENT_CANCELLED`
+	- `CHARGE_CREATED`
+	- `CHARGE_CANCELLED`
+	- `PAYMENT_RECORDED`
+	- `PAYMENT_REVERSED`
+
+## Separacao Financeiro x SST
+
+- Inadimplencia financeira nao invalida automaticamente documentos tecnicos (PGR, PCMSO, LTCAT etc.).
+- Regras de validade tecnica permanecem independentes do status financeiro.
+
+## Dados de Cartao e Segredos de Pagamento
+
+- O sistema nao armazena PAN completo, CVV, senha ou trilha sensivel de cartao.
+- Nesta fase nao ha gateway real, tokenizacao, webhook externo ou checkout integrado.
+- Qualquer integracao futura devera delegar dados sensiveis de cartao ao gateway especializado.

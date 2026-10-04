@@ -24,6 +24,12 @@ import {
   removeContractEstablishment,
   removeContractService,
 } from '@/services/contracts.service'
+import {
+  createContractFinancialPlan,
+  getContractFinanceSummary,
+  listContractInstallments,
+  previewContractFinancialPlan,
+} from '@/services/finance.service'
 import { listServiceCatalog } from '@/services/service-catalog.service'
 
 function toApiMessage(error: unknown): string {
@@ -55,6 +61,8 @@ export function ContractDetailPage() {
   const [serviceQuantity, setServiceQuantity] = useState(1)
   const [serviceUnitValue, setServiceUnitValue] = useState('')
   const [establishmentId, setEstablishmentId] = useState('')
+  const [firstDueDate, setFirstDueDate] = useState('')
+  const [planPreview, setPlanPreview] = useState<Array<{ number: number; dueDate: string; amount: string }> | null>(null)
 
   const contractQuery = useQuery({
     queryKey: ['contract', id],
@@ -102,10 +110,28 @@ export function ContractDetailPage() {
     enabled: Boolean(contractQuery.data?.contract.clientId),
   })
 
+  const financeSummaryQuery = useQuery({
+    queryKey: ['contract-finance-summary', id],
+    queryFn: () => getContractFinanceSummary(id as string),
+    enabled: Boolean(id),
+  })
+
+  const installmentsQuery = useQuery({
+    queryKey: ['contract-installments', id],
+    queryFn: () =>
+      listContractInstallments(id as string, {
+        page: 1,
+        pageSize: 50,
+      }),
+    enabled: Boolean(id) && Boolean(financeSummaryQuery.data?.hasPlan),
+  })
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['contract', id] })
     queryClient.invalidateQueries({ queryKey: ['contract-services', id] })
     queryClient.invalidateQueries({ queryKey: ['contract-establishments', id] })
+    queryClient.invalidateQueries({ queryKey: ['contract-finance-summary', id] })
+    queryClient.invalidateQueries({ queryKey: ['contract-installments', id] })
   }
 
   const changeStatusMutation = useMutation({
@@ -178,9 +204,41 @@ export function ContractDetailPage() {
     },
   })
 
+  const previewPlanMutation = useMutation({
+    mutationFn: () =>
+      previewContractFinancialPlan(id as string, {
+        firstDueDate,
+      }),
+    onSuccess(data) {
+      setPlanPreview(data.preview.installments)
+      setError(null)
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const createPlanMutation = useMutation({
+    mutationFn: () =>
+      createContractFinancialPlan(id as string, {
+        firstDueDate,
+      }),
+    onSuccess() {
+      setFeedback('Plano financeiro gerado com sucesso.')
+      setError(null)
+      setPlanPreview(null)
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
   const contract = contractQuery.data?.contract
   const contractServices = contractServicesQuery.data?.data ?? []
   const contractEstablishments = contractEstablishmentsQuery.data?.data
+  const financeSummary = financeSummaryQuery.data
+  const installments = installmentsQuery.data?.data ?? []
   const serviceCatalog = catalogQuery.data?.data ?? []
   const availableEstablishments = availableEstablishmentsQuery.data?.data
 
@@ -236,6 +294,83 @@ export function ContractDetailPage() {
                 <strong>Valor base mensal:</strong> {formatMoney(contract.monthlyBaseValue)}
               </p>
             </div>
+          </Card>
+
+          <Card title="Financeiro" subtitle="Parcelas, recebimentos e saldo do contrato.">
+            {!financeSummary?.hasPlan ? (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">Plano financeiro ainda nao gerado.</p>
+
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Input
+                    type="date"
+                    value={firstDueDate}
+                    onChange={(event) => setFirstDueDate(event.target.value)}
+                    required
+                  />
+                  <Button onClick={() => previewPlanMutation.mutate()} disabled={!firstDueDate || previewPlanMutation.isPending}>
+                    {previewPlanMutation.isPending ? 'Gerando preview...' : 'Gerar preview'}
+                  </Button>
+                  <Button onClick={() => createPlanMutation.mutate()} disabled={!firstDueDate || createPlanMutation.isPending}>
+                    {createPlanMutation.isPending ? 'Persistindo...' : 'Gerar plano financeiro'}
+                  </Button>
+                </div>
+
+                {planPreview ? (
+                  <div className="rounded-xl border border-slate-200 p-3">
+                    <p className="mb-2 text-sm font-semibold text-slate-800">Preview das parcelas</p>
+                    <div className="space-y-1 text-sm text-slate-700">
+                      {planPreview.map((item) => (
+                        <p key={item.number}>
+                          {item.number} - {item.dueDate} - {formatMoney(item.amount)}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <p><strong>Valor contratado:</strong> {formatMoney(contract.totalValue)}</p>
+                  <p><strong>Valor previsto:</strong> {formatMoney(financeSummary.summary?.totalPlanned ?? '0')}</p>
+                  <p><strong>Recebido:</strong> {formatMoney(financeSummary.summary?.totalPaid ?? '0')}</p>
+                  <p><strong>Saldo:</strong> {formatMoney(financeSummary.summary?.totalBalance ?? '0')}</p>
+                  <p><strong>Vencido:</strong> {formatMoney(financeSummary.summary?.totalOverdue ?? '0')}</p>
+                </div>
+
+                {installments.length === 0 ? (
+                  <p className="text-sm text-slate-600">Sem parcelas para exibir.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                          <th className="px-3 py-2">Parcela</th>
+                          <th className="px-3 py-2">Vencimento</th>
+                          <th className="px-3 py-2">Valor</th>
+                          <th className="px-3 py-2">Pago</th>
+                          <th className="px-3 py-2">Saldo</th>
+                          <th className="px-3 py-2">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {installments.map((item) => (
+                          <tr key={item.id} className="border-b border-slate-100">
+                            <td className="px-3 py-2">{item.number}</td>
+                            <td className="px-3 py-2">{item.dueDate}</td>
+                            <td className="px-3 py-2">{formatMoney(item.adjustedAmount)}</td>
+                            <td className="px-3 py-2">{formatMoney(item.paidAmount)}</td>
+                            <td className="px-3 py-2">{formatMoney(item.balance)}</td>
+                            <td className="px-3 py-2"><Badge>{item.status}</Badge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
 
           <Card title="Transicao de status">

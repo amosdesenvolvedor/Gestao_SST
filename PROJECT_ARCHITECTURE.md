@@ -50,6 +50,7 @@ Estrutura principal:
 - `service-catalog`: catalogo de servicos padronizados.
 - `contracts`: contratos, servicos contratados e estabelecimentos abrangidos.
 - `client-portal`: contexto seguro do portal, central visual de servicos e contratos de leitura.
+- `finance`: plano financeiro, parcelas, cobrancas, pagamentos, estornos, contas a receber e overview.
 
 ## Contratos e Catalogo (Fase 04)
 
@@ -65,6 +66,39 @@ Estrutura principal:
 - API isolada para clientes em `/api/v1/client-portal/*`.
 - Backend nunca confia apenas no `clientId` enviado pelo frontend; valida membership ativo em runtime.
 - Protecao anti-IDOR aplicada para `clientId`, `establishmentId` e `serviceCode`.
+
+## Motor Financeiro (Fase 06)
+
+- Dominio financeiro principal:
+	- `Contract`
+	- `ContractFinancialPlan`
+	- `Installment`
+	- `Charge`
+	- `Payment`
+- Separacao de conceitos:
+	- `Installment` representa obrigacao prevista.
+	- `Charge` representa cobranca/tentativa preparada para provedores futuros.
+	- `Payment` representa dinheiro efetivamente recebido/confirmado.
+- Gatilho de plano financeiro:
+	- operacao explicita (`POST /contracts/:id/financial-plan`), permitida para contratos `SIGNED`, `ACTIVE` e `EXPIRING`.
+	- operacao idempotente por `@unique(contractId)` em `ContractFinancialPlan`.
+- Estrategia monetaria:
+	- `Decimal(14,2)` persistido no banco.
+	- serializacao em string na API.
+	- distribuicao de centavos deterministica por centavos inteiros.
+- Datas:
+	- `dueDate` tratada como data civil (`YYYY-MM-DD`).
+	- `paidAt` tratado como instante UTC.
+- Confiabilidade transacional:
+	- operacoes criticas com `Serializable` (gerar plano, registrar pagamento, estornar, cancelar parcela, cancelar cobranca).
+- Concorrencia:
+	- registro simultaneo de pagamento utiliza transacao + recalc no mesmo contexto, bloqueando overpayment por corrida.
+
+## Portal Financeiro do Cliente
+
+- Endpoint dedicado de leitura: `GET /api/v1/client-portal/finance/installments`.
+- Reutiliza escopo de membership ativo (`ClientMembership`) para evitar acesso horizontal.
+- Nao reutiliza endpoint administrativo no portal.
 
 ## Frontend (Rotas de Negocio)
 

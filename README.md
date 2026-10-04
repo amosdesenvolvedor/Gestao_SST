@@ -303,3 +303,45 @@ npm run build
 - Cliente `SUSPENDED`/`INACTIVE` opera em modo informativo (sem modulos operacionais).
 - Cards exibem apenas servicos de contratos com status operacionais (`SIGNED`, `ACTIVE`, `EXPIRING`) e itens ativos.
 - Servicos repetidos em contratos diferentes sao agrupados por `serviceCodeSnapshot`.
+
+## Fase 06 (Motor Financeiro, Parcelas, Cobrancas e Pagamentos)
+
+### Modulos implementados
+
+- Motor financeiro interno derivado de contrato (`Contract -> ContractFinancialPlan -> Installment -> Charge -> Payment`).
+- Geracao explicita de plano financeiro por contrato (sem auto-geracao em `DRAFT`).
+- Suporte a parcelamento com distribuicao deterministica de centavos, sem perda/ganho monetario.
+- Controle de vencimento civil com ajuste de fim de mes (`dueDay` 31 em meses menores, inclusive fevereiro/bissexto).
+- Registro de recebimento manual com suporte a pagamento parcial, bloqueio de overpayment e estorno estruturado.
+- Cobrancas internas/manuais preparadas para gateway futuro (provedor/status/idempotencia).
+- Dashboard administrativo financeiro (`/financeiro`) com cards reais de receita/recebimento/a receber/vencido/proximo vencimento.
+- Contas a receber com filtros e paginacao server-side.
+- Portal do cliente com modulo financeiro de leitura (`/portal/financeiro`) isolado por `ClientMembership`.
+
+### Endpoints principais da fase
+
+- `GET /api/v1/finance/overview`
+- `GET /api/v1/finance/receivables`
+- `GET /api/v1/contracts/:contractId/financial-plan`
+- `POST /api/v1/contracts/:contractId/financial-plan/preview`
+- `POST /api/v1/contracts/:contractId/financial-plan`
+- `GET /api/v1/contracts/:contractId/installments`
+- `GET /api/v1/contracts/:contractId/finance-summary`
+- `GET /api/v1/installments/:id`
+- `PATCH /api/v1/installments/:id`
+- `POST /api/v1/installments/:id/cancel`
+- `GET /api/v1/installments/:id/payments`
+- `POST /api/v1/installments/:id/payments`
+- `POST /api/v1/payments/:id/reverse`
+- `GET /api/v1/installments/:id/charges`
+- `POST /api/v1/installments/:id/charges`
+- `POST /api/v1/charges/:id/cancel`
+- `GET /api/v1/client-portal/finance/installments`
+
+### Regras centrais financeiras
+
+- `OVERDUE` e derivado de `dueDate < hoje` com `balance > 0`; nao depende de job diario para flip de estado.
+- `balance` e derivado de `adjustedAmount - soma(pagamentos confirmados e nao estornados)`.
+- Nao ha delete de pagamento confirmado; estorno registra trilha (`reversedAt`, `reversedByUserId`, `reversalReason`).
+- Cancelamento de parcela com pagamento confirmado e bloqueado; exige estorno previo.
+- Inadimplencia financeira nao invalida automaticamente documentos SST.

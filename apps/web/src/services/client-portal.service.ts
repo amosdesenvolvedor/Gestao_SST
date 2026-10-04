@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/api-client'
 import type {
   ClientPortalContext,
   ClientPortalContractsResponse,
+  ClientPortalFinanceResponse,
   ClientPortalServiceDetailResponse,
   ClientPortalServicesResponse,
 } from '@/types/client-portal'
@@ -37,4 +38,9 @@ export function getClientPortalServiceByCode(code: string, clientId?: string, es
 export function listClientPortalContracts(clientId?: string, establishmentId?: string) {
   const query = toQuery({ clientId, establishmentId })
   return apiClient<ClientPortalContractsResponse>(`/api/v1/client-portal/contracts${query}`)
+}
+
+export function listClientPortalFinanceInstallments(clientId?: string, contractId?: string) {
+  const query = toQuery({ clientId, contractId })
+  return apiClient<ClientPortalFinanceResponse>(`/api/v1/client-portal/finance/installments${query}`)
 }

@@ -1,6 +1,7 @@
 import type { ContractStatus } from '@prisma/client'
 import { prisma } from '../../lib/prisma.js'
 import type { AuthUser } from '../../plugins/auth.js'
+import { listPortalFinanceService } from '../finance/finance.service.js'
 
 type PortalContextInput = {
   actor: AuthUser
@@ -422,5 +423,38 @@ export async function listClientPortalContractsService(input: PortalFilterInput)
       services: contract.services,
       establishments: contract.establishments.map((item) => item.establishment),
     })),
+  }
+}
+
+export async function listClientPortalFinanceService(input: PortalContextInput & { contractId?: string }) {
+  const scope = await resolvePortalScope({
+    actor: input.actor,
+    selectedClientId: input.selectedClientId,
+  })
+
+  if (input.contractId) {
+    const authorizedContract = await prisma.contract.findFirst({
+      where: {
+        id: input.contractId,
+        clientId: scope.currentClientId,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    if (!authorizedContract) {
+      throw new Error('Contrato nao autorizado para o cliente atual.')
+    }
+  }
+
+  const finance = await listPortalFinanceService({
+    clientId: scope.currentClientId,
+    contractId: input.contractId,
+  })
+
+  return {
+    access: scope.clientAccess,
+    ...finance,
   }
 }

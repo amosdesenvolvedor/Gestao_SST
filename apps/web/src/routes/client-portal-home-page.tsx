@@ -6,7 +6,11 @@ import { Card } from '@/components/card'
 import { EmptyState } from '@/components/empty-state'
 import { IconBriefcase, IconBuilding, IconFile, IconShield } from '@/components/icons'
 import { Loading } from '@/components/loading'
-import { getClientPortalContext, listClientPortalServices } from '@/services/client-portal.service'
+import {
+  getClientPortalContext,
+  listClientPortalFinanceInstallments,
+  listClientPortalServices,
+} from '@/services/client-portal.service'
 
 function getStatusMeta(status: string) {
   if (status === 'ACTIVE' || status === 'SIGNED') {
@@ -39,16 +43,22 @@ export function ClientPortalHomePage() {
     queryFn: () => listClientPortalServices(clientId, establishmentId),
   })
 
-  if (contextQuery.isLoading || servicesQuery.isLoading) {
+  const financeQuery = useQuery({
+    queryKey: ['client-portal-finance-home', clientId],
+    queryFn: () => listClientPortalFinanceInstallments(clientId),
+  })
+
+  if (contextQuery.isLoading || servicesQuery.isLoading || financeQuery.isLoading) {
     return <Loading />
   }
 
-  if (!contextQuery.data || !servicesQuery.data) {
+  if (!contextQuery.data || !servicesQuery.data || !financeQuery.data) {
     return <EmptyState title="Portal indisponivel" description="Nao foi possivel carregar os dados do portal." />
   }
 
   const context = contextQuery.data
   const services = servicesQuery.data.data
+  const finance = financeQuery.data
   const access = context.currentClient.access
 
   return (
@@ -87,6 +97,23 @@ export function ClientPortalHomePage() {
             Seus servicos contratados aparecem abaixo de forma consolidada por tipo de servico.
           </p>
         </div>
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2">
+        <article className="rounded-2xl border border-[#D7DADF] bg-white p-5 shadow-panel">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Financeiro</p>
+          <h3 className="mt-2 text-lg font-semibold text-[#202327]">Proximo vencimento</h3>
+          <p className="mt-1 text-sm text-slate-600">
+            {finance.summary.nextDueDate ? finance.summary.nextDueDate : 'Sem parcelas em aberto'}
+          </p>
+          <p className="mt-2 text-xl font-bold text-[#202327]">
+            {finance.summary.nextDueAmount ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(finance.summary.nextDueAmount)) : 'R$ 0,00'}
+          </p>
+          <p className="mt-1 text-sm text-slate-500">{finance.summary.hasDelinquency ? 'Com parcelas vencidas' : 'Situacao em dia'}</p>
+          <Link to={`/portal/financeiro${searchParams.toString() ? `?${searchParams.toString()}` : ''}`} className="mt-4 inline-flex">
+            <Button>Ver financeiro</Button>
+          </Link>
+        </article>
       </section>
 
       <section>

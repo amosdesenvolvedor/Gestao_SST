@@ -28,6 +28,8 @@ Status: concluida (ClientMembership, API isolada do portal, layout dedicado e ge
 ## FASE 06
 Financeiro
 
+Status: concluida (plano financeiro de contrato, parcelas, cobrancas, pagamentos, recebimento manual, estorno, contas a receber, dashboard administrativo e financeiro no portal do cliente).
+
 ## FASE 07
 Nucleo tecnico SST
 

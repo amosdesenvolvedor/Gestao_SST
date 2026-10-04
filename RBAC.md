@@ -64,20 +64,32 @@
 - clientPortal.services.read
 - clientPortal.contracts.read
 - clientPortal.establishments.read
+- clientPortal.finance.read
 - clientPortalUsers.read
 - clientPortalUsers.manage
+- finance.read
+- finance.plan.create
+- finance.installments.read
+- finance.installments.update
+- finance.installments.cancel
+- finance.payments.read
+- finance.payments.create
+- finance.payments.reverse
+- finance.charges.read
+- finance.charges.create
+- finance.charges.cancel
 
 ## Matriz atual
 
-- SUPER_ADMIN: todas as permissions atuais.
-- ADMIN: users.* (exceto bloqueios de SUPER_ADMIN por regra de seguranca), professionals.*, settings.*, clients.*, establishments.*, clientContacts.*, serviceCatalog.*, contracts.*, contractServices.*, contractEstablishments.* e gestao de usuarios do portal (`clientPortalUsers.read/manage`).
-- SST_MANAGER: dashboard.read, professionals.read, clients.read/create/update, establishments.read/create/update, clientContacts.read/create/update, serviceCatalog.read, contracts.read/create/update/changeStatus, contractServices.read/manage, contractEstablishments.read/manage, `clientPortalUsers.read/manage`.
+- SUPER_ADMIN: todas as permissions atuais, incluindo financeiro completo.
+- ADMIN: users.* (exceto bloqueios de SUPER_ADMIN por regra de seguranca), professionals.*, settings.*, clients.*, establishments.*, clientContacts.*, serviceCatalog.*, contracts.*, contractServices.*, contractEstablishments.*, `clientPortalUsers.read/manage` e financeiro completo.
+- SST_MANAGER: dashboard.read, professionals.read, clients.read/create/update, establishments.read/create/update, clientContacts.read/create/update, serviceCatalog.read, contracts.read/create/update/changeStatus, contractServices.read/manage, contractEstablishments.read/manage, `clientPortalUsers.read/manage`, `finance.read`.
 - SAFETY_ENGINEER: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
 - SAFETY_TECHNICIAN: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
 - OCCUPATIONAL_PHYSICIAN: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
 - RH: dashboard.read, users.read, professionals.read/create/update, clients.read, clientContacts.read/create/update, contracts.read, contractServices.read, contractEstablishments.read, `clientPortalUsers.read`.
-- FINANCIAL: dashboard.read, clients.read, clientContacts.read, contracts.read, contractServices.read, contractEstablishments.read.
-- CLIENT: `clientPortal.access`, `clientPortal.services.read`, `clientPortal.contracts.read`, `clientPortal.establishments.read`.
+- FINANCIAL: dashboard.read, clients.read, clientContacts.read, contracts.read, contractServices.read, contractEstablishments.read, `finance.read`, `finance.plan.create`, `finance.installments.read/update/cancel`, `finance.payments.read/create/reverse`, `finance.charges.read/create/cancel`.
+- CLIENT: `clientPortal.access`, `clientPortal.services.read`, `clientPortal.contracts.read`, `clientPortal.establishments.read`, `clientPortal.finance.read`.
 - VIEWER: dashboard.read, professionals.read, clients.read, establishments.read, clientContacts.read, serviceCatalog.read, contracts.read, contractServices.read, contractEstablishments.read.
 
 ## Regras anti-escalada
@@ -123,3 +135,10 @@
 - Acesso ao portal depende de permissionamento + membership ativo.
 - Endpoints de portal validam isolamento por cliente e bloqueiam acesso horizontal entre empresas.
 - Gestao de membership e feita apenas por perfis administrativos com `clientPortalUsers.manage`.
+
+## Regras do Financeiro
+
+- Endpoints administrativos financeiros exigem permissions `finance.*` especificas por operacao.
+- Perfil `CLIENT` possui apenas leitura financeira no namespace do portal (`clientPortal.finance.read`).
+- Perfil `FINANCIAL` nao recebe permissoes de configuracao administrativa de usuarios.
+- Operacoes sensiveis (`plan.create`, `payments.reverse`, `installments.cancel`, `charges.cancel`) permanecem protegidas no backend mesmo se o frontend ocultar controles.

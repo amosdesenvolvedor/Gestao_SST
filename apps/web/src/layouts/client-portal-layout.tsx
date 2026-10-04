@@ -12,6 +12,7 @@ import { getClientPortalContext } from '@/services/client-portal.service'
 const navItems = [
   { to: '/portal', label: 'Central de Servicos' },
   { to: '/portal/servicos', label: 'Servicos' },
+  { to: '/portal/financeiro', label: 'Financeiro' },
   { to: '/portal/documentos', label: 'Documentos' },
   { to: '/portal/empresa', label: 'Empresa' },
 ]

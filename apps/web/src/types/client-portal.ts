@@ -115,3 +115,39 @@ export type ClientPortalContractsResponse = {
     }>
   }>
 }
+
+export type ClientPortalFinanceResponse = {
+  access: ClientPortalAccess
+  summary: {
+    totalPlanned: string
+    totalPaid: string
+    totalBalance: string
+    totalOverdue: string
+    nextDueDate: string | null
+    nextDueAmount: string | null
+    hasDelinquency: boolean
+  }
+  contracts: Array<{
+    id: string
+    contractNumber: string
+  }>
+  data: Array<{
+    id: string
+    contractId: string
+    number: number
+    dueDate: string
+    adjustedAmount: string
+    paidAmount: string
+    balance: string
+    status: 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED'
+    contract: {
+      id: string
+      contractNumber: string
+      title: string
+      client: {
+        legalName: string
+        tradeName: string | null
+      }
+    }
+  }>
+}

@@ -74,7 +74,34 @@ enum PaymentMethod {
   CREDIT_CARD
   BANK_TRANSFER
   BOLETO
+  CASH
   OTHER
+}
+
+enum InstallmentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum ChargeProvider {
+  INTERNAL
+  MANUAL
+}
+
+enum ChargeStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  CONFIRMED
+  REVERSED
 }
 
 model User {
@@ -90,6 +117,10 @@ model User {
 
   professional Professional?
   clientMemberships ClientMembership[]
+  generatedFinancialPlans ContractFinancialPlan[] @relation("FinancialPlanGeneratedBy")
+  recordedPayments        Payment[]               @relation("PaymentCreatedBy")
+  reversedPayments        Payment[]               @relation("PaymentReversedBy")
+  cancelledInstallments   Installment[]           @relation("InstallmentCancelledBy")
 
   @@index([role])
 }
@@ -210,12 +241,116 @@ model Contract {
   renewedContracts     Contract[]             @relation("ContractRenewal")
   services             ContractService[]
   establishments       ContractEstablishment[]
+  financialPlan        ContractFinancialPlan?
+  installments         Installment[]
 
   @@index([clientId])
   @@index([status])
   @@index([startDate])
   @@index([endDate])
   @@index([clientId, status])
+}
+
+model ContractFinancialPlan {
+  id               String   @id @default(cuid())
+  contractId       String   @unique
+  totalAmount      Decimal  @db.Decimal(14, 2)
+  installmentCount Int
+  dueDay           Int
+  firstDueDate     DateTime
+  generationRule   String
+  version          Int      @default(1)
+  generatedAt      DateTime @default(now())
+  generatedByUserId String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  contract         Contract      @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  generatedByUser  User?         @relation("FinancialPlanGeneratedBy", fields: [generatedByUserId], references: [id], onDelete: SetNull)
+  installments     Installment[]
+
+  @@index([generatedAt])
+}
+
+model Installment {
+  id                  String            @id @default(cuid())
+  contractId          String
+  financialPlanId     String
+  number              Int
+  dueDate             DateTime
+  originalAmount      Decimal           @db.Decimal(14, 2)
+  adjustedAmount      Decimal           @db.Decimal(14, 2)
+  status              InstallmentStatus @default(PENDING)
+  description         String?
+  cancellationReason  String?
+  cancelledAt         DateTime?
+  cancelledByUserId   String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  contract            Contract              @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  financialPlan       ContractFinancialPlan @relation(fields: [financialPlanId], references: [id], onDelete: Restrict)
+  cancelledByUser     User?                 @relation("InstallmentCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  charges             Charge[]
+  payments            Payment[]
+
+  @@unique([contractId, number])
+  @@index([contractId, dueDate])
+  @@index([dueDate, status])
+  @@index([financialPlanId])
+}
+
+model Charge {
+  id              String         @id @default(cuid())
+  installmentId   String
+  provider        ChargeProvider
+  method          PaymentMethod
+  status          ChargeStatus   @default(PENDING)
+  amount          Decimal        @db.Decimal(14, 2)
+  externalId      String?
+  idempotencyKey  String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  installment     Installment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  payments        Payment[]
+
+  @@unique([externalId])
+  @@unique([idempotencyKey])
+  @@index([installmentId, createdAt])
+  @@index([status])
+}
+
+model Payment {
+  id                 String        @id @default(cuid())
+  installmentId      String
+  chargeId           String?
+  amount             Decimal       @db.Decimal(14, 2)
+  paidAt             DateTime
+  method             PaymentMethod
+  provider           ChargeProvider
+  status             PaymentStatus @default(CONFIRMED)
+  externalReference  String?
+  idempotencyKey     String?
+  notes              String?
+  createdByUserId    String?
+  reversedAt         DateTime?
+  reversedByUserId   String?
+  reversalReason     String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  installment        Installment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  charge             Charge?     @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  createdByUser      User?       @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reversedByUser     User?       @relation("PaymentReversedBy", fields: [reversedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([externalReference])
+  @@unique([idempotencyKey])
+  @@index([installmentId, paidAt])
+  @@index([chargeId])
+  @@index([status])
 }
 
 model ContractService {

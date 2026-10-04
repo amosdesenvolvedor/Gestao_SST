@@ -7,6 +7,7 @@ import { AccessDeniedPage } from '@/routes/access-denied-page'
 import { ClientPortalCompanyPage } from '@/routes/client-portal-company-page'
 import { ClientPortalDocumentsPage } from '@/routes/client-portal-documents-page'
 import { ClientPortalHomePage } from '@/routes/client-portal-home-page'
+import { ClientPortalFinancePage } from '@/routes/client-portal-finance-page'
 import { ClientPortalServicePage } from '@/routes/client-portal-service-page'
 import { ClientPortalServicesPage } from '@/routes/client-portal-services-page'
 import { DashboardPage } from '@/routes/dashboard-page'
@@ -16,6 +17,7 @@ import { ClientDetailPage } from '@/routes/client-detail-page'
 import { ClientsPage } from '@/routes/clients-page'
 import { ContractDetailPage } from '@/routes/contract-detail-page'
 import { ContractsPage } from '@/routes/contracts-page'
+import { FinancePage } from '@/routes/finance-page'
 import { PlaceholderPage } from '@/routes/placeholder-page'
 import { ProfessionalsPage } from '@/routes/professionals-page'
 import { ProtectedRoute } from '@/routes/protected-route'
@@ -66,7 +68,14 @@ function AdminPrivateLayout() {
               </PermissionRoute>
             }
           />
-          <Route path="/financeiro" element={<PlaceholderPage title="Financeiro" />} />
+          <Route
+            path="/financeiro"
+            element={
+              <PermissionRoute permissions={['finance.read']}>
+                <FinancePage />
+              </PermissionRoute>
+            }
+          />
           <Route path="/gestao-sst" element={<PlaceholderPage title="Gestao SST" />} />
           <Route path="/documentos" element={<PlaceholderPage title="Documentos" />} />
           <Route
@@ -117,6 +126,7 @@ function ClientPrivateLayout() {
             <Route path="/portal" element={<ClientPortalHomePage />} />
             <Route path="/portal/servicos" element={<ClientPortalServicesPage />} />
             <Route path="/portal/servicos/:serviceCode" element={<ClientPortalServicePage />} />
+            <Route path="/portal/financeiro" element={<ClientPortalFinancePage />} />
             <Route path="/portal/documentos" element={<ClientPortalDocumentsPage />} />
             <Route path="/portal/empresa" element={<ClientPortalCompanyPage />} />
             <Route path="*" element={<NotFoundPage />} />

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { authorizePermissions } from '../../plugins/guards.js'
 import {
   getClientPortalContextService,
+  listClientPortalFinanceService,
   getClientPortalServiceByCodeService,
   listClientPortalContractsService,
   listClientPortalServicesService,
@@ -114,6 +115,29 @@ export async function clientPortalRoutes(app: FastifyInstance): Promise<void> {
         actor: request.authUser,
         selectedClientId: parsedQuery.data.clientId,
         establishmentId: parsedQuery.data.establishmentId,
+      })
+      return reply.send(result)
+    } catch (error) {
+      return handlePortalError(error, reply)
+    }
+  })
+
+  app.get('/client-portal/finance/installments', { preHandler: [authorizePermissions(['clientPortal.finance.read'])] }, async (request, reply) => {
+    const parsedQuery = clientPortalQuerySchema.safeParse(request.query)
+
+    if (!parsedQuery.success) {
+      return reply.code(400).send({ message: 'Query invalida.' })
+    }
+
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
+    try {
+      const result = await listClientPortalFinanceService({
+        actor: request.authUser,
+        selectedClientId: parsedQuery.data.clientId,
+        contractId: parsedQuery.data.contractId,
       })
       return reply.send(result)
     } catch (error) {

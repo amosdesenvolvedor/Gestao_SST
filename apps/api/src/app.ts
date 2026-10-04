@@ -9,6 +9,7 @@ import { clientsRoutes } from './modules/clients/clients.routes.js'
 import { serviceCatalogRoutes } from './modules/service-catalog/service-catalog.routes.js'
 import { contractsRoutes } from './modules/contracts/contracts.routes.js'
 import { clientPortalRoutes } from './modules/client-portal/client-portal.routes.js'
+import { financeRoutes } from './modules/finance/finance.routes.js'
 import { registerErrorHandler } from './shared/errors.js'
 
 export function buildApp() {
@@ -27,6 +28,7 @@ export function buildApp() {
   app.register(serviceCatalogRoutes, { prefix: '/api/v1' })
   app.register(contractsRoutes, { prefix: '/api/v1' })
   app.register(clientPortalRoutes, { prefix: '/api/v1' })
+  app.register(financeRoutes, { prefix: '/api/v1' })
 
   registerErrorHandler(app)
 

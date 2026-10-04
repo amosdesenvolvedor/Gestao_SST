@@ -9,7 +9,7 @@ const items = [
   { to: '/dashboard', label: 'Dashboard', permission: 'dashboard.read' as Permission },
   { to: '/clientes', label: 'Clientes', permission: 'clients.read' as Permission },
   { to: '/contratos', label: 'Contratos', permission: 'contracts.read' as Permission },
-  { to: '/financeiro', label: 'Financeiro' },
+  { to: '/financeiro', label: 'Financeiro', permission: 'finance.read' as Permission },
   { to: '/gestao-sst', label: 'Gestao SST' },
   { to: '/documentos', label: 'Documentos' },
   { to: '/profissionais', label: 'Profissionais', permission: 'professionals.read' as Permission },

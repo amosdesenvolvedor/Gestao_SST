@@ -123,6 +123,33 @@ Regras de dominio implementadas:
 - Central visual do portal deriva de `ContractService` ativo em contratos com status operacionais (`SIGNED`, `ACTIVE`, `EXPIRING`).
 - Servicos repetidos sao agrupados por `serviceCodeSnapshot`, consolidando contratos relacionados.
 
+## Fase 06 (Implementado no Banco)
+
+- ContractFinancialPlan
+- Installment
+- Charge
+- Payment
+- InstallmentStatus (PENDING, PARTIALLY_PAID, PAID, CANCELLED)
+- ChargeProvider (INTERNAL, MANUAL)
+- ChargeStatus (PENDING, PROCESSING, PAID, FAILED, CANCELLED, EXPIRED)
+- PaymentStatus (CONFIRMED, REVERSED)
+
+Regras de dominio implementadas:
+
+- Plano financeiro e gerado por operacao explicita e unica por contrato.
+- Gatilho de geracao exige status contratual operacional (`SIGNED`, `ACTIVE`, `EXPIRING`).
+- Parcelas usam distribuicao deterministica de centavos para garantir soma exata ao total.
+- `dueDate` de parcelas respeita data civil e ajuste de fim de mes (`dueDay` 29/30/31 conforme calendario real).
+- `OVERDUE` e status derivado em tempo de consulta (`dueDate < hoje` e `balance > 0`) para evitar dependencia de job diario.
+- `balance` e derivado de `adjustedAmount - pagamentos confirmados nao estornados`.
+- Pagamento parcial suportado sem mutacao manual de status; status deriva do saldo.
+- Overpayment e bloqueado no backend.
+- Estorno nao remove pagamento; marca `Payment` como `REVERSED` com trilha de quem/quando/motivo.
+- Cancelamento de parcela com pagamento confirmado e bloqueado; exige estorno anterior.
+- `Charge` e `Payment` possuem campos de idempotencia/external reference para integracao futura com gateway.
+- Historico financeiro permanece mesmo com contrato encerrado/terminado/cancelado.
+- Inadimplencia financeira nao invalida automaticamente documentos tecnicos SST.
+
 ## Distincao arquitetural
 
 - User representa identidade de acesso ao sistema.

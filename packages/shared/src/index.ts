@@ -67,8 +67,20 @@ export const permissions = [
   'clientPortal.services.read',
   'clientPortal.contracts.read',
   'clientPortal.establishments.read',
+  'clientPortal.finance.read',
   'clientPortalUsers.read',
   'clientPortalUsers.manage',
+  'finance.read',
+  'finance.plan.create',
+  'finance.installments.read',
+  'finance.installments.update',
+  'finance.installments.cancel',
+  'finance.payments.read',
+  'finance.payments.create',
+  'finance.payments.reverse',
+  'finance.charges.read',
+  'finance.charges.create',
+  'finance.charges.cancel',
 ] as const
 
 export const permissionSchema = z.enum(permissions)
@@ -126,6 +138,17 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'contractEstablishments.manage',
     'clientPortalUsers.read',
     'clientPortalUsers.manage',
+    'finance.read',
+    'finance.plan.create',
+    'finance.installments.read',
+    'finance.installments.update',
+    'finance.installments.cancel',
+    'finance.payments.read',
+    'finance.payments.create',
+    'finance.payments.reverse',
+    'finance.charges.read',
+    'finance.charges.create',
+    'finance.charges.cancel',
   ],
   SST_MANAGER: [
     'dashboard.read',
@@ -150,6 +173,18 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'contractEstablishments.manage',
     'clientPortalUsers.read',
     'clientPortalUsers.manage',
+    'finance.read',
+    'finance.plan.create',
+    'finance.installments.read',
+    'finance.installments.update',
+    'finance.installments.cancel',
+    'finance.payments.read',
+    'finance.payments.create',
+    'finance.payments.reverse',
+    'finance.charges.read',
+    'finance.charges.create',
+    'finance.charges.cancel',
+    'finance.read',
   ],
   SAFETY_ENGINEER: [
     'dashboard.read',
@@ -206,12 +241,24 @@ export const rolePermissionsMatrix: Record<Role, Permission[]> = {
     'contracts.read',
     'contractServices.read',
     'contractEstablishments.read',
+    'finance.read',
+    'finance.plan.create',
+    'finance.installments.read',
+    'finance.installments.update',
+    'finance.installments.cancel',
+    'finance.payments.read',
+    'finance.payments.create',
+    'finance.payments.reverse',
+    'finance.charges.read',
+    'finance.charges.create',
+    'finance.charges.cancel',
   ],
   CLIENT: [
     'clientPortal.access',
     'clientPortal.services.read',
     'clientPortal.contracts.read',
     'clientPortal.establishments.read',
+    'clientPortal.finance.read',
   ],
   VIEWER: [
     'dashboard.read',
@@ -317,11 +364,35 @@ export const contractStatusSchema = z.enum(contractStatuses)
 
 export type ContractStatus = (typeof contractStatuses)[number]
 
-export const paymentMethods = ['PIX', 'CREDIT_CARD', 'BANK_TRANSFER', 'BOLETO', 'OTHER'] as const
+export const paymentMethods = ['PIX', 'CREDIT_CARD', 'BANK_TRANSFER', 'BOLETO', 'CASH', 'OTHER'] as const
+
+export const installmentStatuses = ['PENDING', 'PARTIALLY_PAID', 'PAID', 'CANCELLED'] as const
+
+export const chargeProviders = ['INTERNAL', 'MANUAL'] as const
+
+export const chargeStatuses = ['PENDING', 'PROCESSING', 'PAID', 'FAILED', 'CANCELLED', 'EXPIRED'] as const
+
+export const paymentStatuses = ['CONFIRMED', 'REVERSED'] as const
 
 export const paymentMethodSchema = z.enum(paymentMethods)
 
+export const installmentStatusSchema = z.enum(installmentStatuses)
+
+export const chargeProviderSchema = z.enum(chargeProviders)
+
+export const chargeStatusSchema = z.enum(chargeStatuses)
+
+export const paymentStatusSchema = z.enum(paymentStatuses)
+
 export type PaymentMethod = (typeof paymentMethods)[number]
+
+export type InstallmentStatus = (typeof installmentStatuses)[number]
+
+export type ChargeProvider = (typeof chargeProviders)[number]
+
+export type ChargeStatus = (typeof chargeStatuses)[number]
+
+export type PaymentStatus = (typeof paymentStatuses)[number]
 
 export const brStates = [
   'AC',
