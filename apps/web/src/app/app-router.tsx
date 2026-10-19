@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { ForgotPasswordPage } from '@/features/auth/forgot-password-page'
 import { LoginPage } from '@/features/auth/login-page'
 import { useAuth } from '@/features/auth/auth-context'
 import { AdminLayout } from '@/layouts/admin-layout'
@@ -156,6 +157,7 @@ export function AppRouter() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
         <Route path="/acesso-negado" element={<AccessDeniedPage />} />
         <Route path="/" element={<RoleAwareRoot />} />
         <Route path="/portal/*" element={<ClientPrivateLayout />} />

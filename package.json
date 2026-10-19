@@ -12,7 +12,11 @@
     "dev:api": "npm run build -w @gestao-sst/shared && npm run dev -w @gestao-sst/api",
     "build": "npm run build -w @gestao-sst/shared && npm run build -w @gestao-sst/api && npm run build -w @gestao-sst/web",
     "lint": "npm run lint -w @gestao-sst/shared && npm run lint -w @gestao-sst/api && npm run lint -w @gestao-sst/web",
-    "typecheck": "npm run typecheck -w @gestao-sst/shared && npm run typecheck -w @gestao-sst/api && npm run typecheck -w @gestao-sst/web"
+    "typecheck": "npm run typecheck -w @gestao-sst/shared && npm run typecheck -w @gestao-sst/api && npm run typecheck -w @gestao-sst/web",
+    "test:finance:integration:security": "npm run test:finance:integration:security -w @gestao-sst/api",
+    "test:finance:integration:check": "npm run test:finance:integration:check -w @gestao-sst/api",
+    "test:finance:integration:prepare": "npm run test:finance:integration:prepare -w @gestao-sst/api",
+    "test:finance:integration": "npm run test:finance:integration -w @gestao-sst/api"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

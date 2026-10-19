@@ -12,6 +12,7 @@ import { Loading } from '@/components/loading'
 import { PageHeader } from '@/components/page-header'
 import { Select } from '@/components/select'
 import { useAuth } from '@/features/auth/auth-context'
+import { SstOrganizationAdminSection } from '@/features/sst/sst-organization-admin-section'
 import { ApiError } from '@/lib/api-client'
 import {
   activateClientContact,
@@ -559,6 +560,8 @@ export function ClientDetailPage() {
           </form>
         ) : null}
       </Card>
+
+      <SstOrganizationAdminSection clientId={id} establishments={establishments} />
 
       <Card title="Contatos" subtitle="Apenas um contato principal por cliente.">
         {contacts.length === 0 ? (

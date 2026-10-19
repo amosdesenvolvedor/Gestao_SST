@@ -6,6 +6,24 @@ coverage/
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
+!.env.*.example
+
+# Sensitive key and certificate material
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.csr
+ssh-key-*.pub
+
+# Local credential scratch files
+*credenciais*.txt
+*credentials*.txt
+*credential*.txt
 
 apps/*/node_modules/
 packages/*/node_modules/

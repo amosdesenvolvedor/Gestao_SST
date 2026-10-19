@@ -1,7 +1,7 @@
 import type { ContractStatus } from '@gestao-sst/shared'
 import { contractStatuses } from '@gestao-sst/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert } from '@/components/alert'
 import { Badge } from '@/components/badge'
@@ -25,10 +25,16 @@ import {
   removeContractService,
 } from '@/services/contracts.service'
 import {
+  cancelAnnualAdvanceCharge,
+  confirmAnnualAdvanceChargePayment,
+  createAnnualAdvanceCharge,
+  failAnnualAdvanceCharge,
+  getContractCommercialHistory,
   createContractFinancialPlan,
   getContractFinanceSummary,
   listContractInstallments,
   previewContractFinancialPlan,
+  reverseAnnualAdvanceChargePayment,
 } from '@/services/finance.service'
 import { listServiceCatalog } from '@/services/service-catalog.service'
 
@@ -62,7 +68,44 @@ export function ContractDetailPage() {
   const [serviceUnitValue, setServiceUnitValue] = useState('')
   const [establishmentId, setEstablishmentId] = useState('')
   const [firstDueDate, setFirstDueDate] = useState('')
-  const [planPreview, setPlanPreview] = useState<Array<{ number: number; dueDate: string; amount: string }> | null>(null)
+  const [commercialModality, setCommercialModality] = useState<'MONTHLY_RECURRING' | 'ANNUAL_PIX_ADVANCE'>('MONTHLY_RECURRING')
+  const [discountPercent, setDiscountPercent] = useState('')
+  const [discountFixedAmount, setDiscountFixedAmount] = useState('')
+  const [advanceMonths, setAdvanceMonths] = useState(12)
+  const [coverageStartDate, setCoverageStartDate] = useState('')
+  const [commercialJustification, setCommercialJustification] = useState('')
+  const [annualAdvanceDueDate, setAnnualAdvanceDueDate] = useState('')
+  const [annualAdvanceNote, setAnnualAdvanceNote] = useState('')
+  const [annualAdvanceReason, setAnnualAdvanceReason] = useState('Ajuste administrativo')
+  const [planPreview, setPlanPreview] = useState<Array<{
+    number: number
+    dueDate: string
+    amount: string
+    adjustedAmount: string
+    discountAllocatedAmount: string
+    coveredByAdvance: boolean
+    referenceStartDate: string
+    referenceEndDate: string
+    chargeType: 'INTEGRAL' | 'PROPORCIONAL'
+    proportion: string
+  }> | null>(null)
+  const [previewMeta, setPreviewMeta] = useState<{
+    totalPlanned: string
+    installmentCount: number
+    proportionalCount: number
+    generationFormula: string
+    commercialCondition: {
+      modality: 'MONTHLY_RECURRING' | 'ANNUAL_PIX_ADVANCE'
+      paymentMethod: string
+      eligibleAmount: string
+      discountAmount: string
+      netAmount: string
+      coverageStartDate: string | null
+      coverageEndDate: string | null
+      advanceMonths: number | null
+      justification: string | null
+    } | null
+  } | null>(null)
 
   const contractQuery = useQuery({
     queryKey: ['contract', id],
@@ -126,12 +169,19 @@ export function ContractDetailPage() {
     enabled: Boolean(id) && Boolean(financeSummaryQuery.data?.hasPlan),
   })
 
+  const commercialHistoryQuery = useQuery({
+    queryKey: ['contract-commercial-history', id],
+    queryFn: () => getContractCommercialHistory(id as string),
+    enabled: Boolean(id),
+  })
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['contract', id] })
     queryClient.invalidateQueries({ queryKey: ['contract-services', id] })
     queryClient.invalidateQueries({ queryKey: ['contract-establishments', id] })
     queryClient.invalidateQueries({ queryKey: ['contract-finance-summary', id] })
     queryClient.invalidateQueries({ queryKey: ['contract-installments', id] })
+    queryClient.invalidateQueries({ queryKey: ['contract-commercial-history', id] })
   }
 
   const changeStatusMutation = useMutation({
@@ -204,13 +254,36 @@ export function ContractDetailPage() {
     },
   })
 
+  const commercialConditionPayload =
+    commercialJustification.trim().length >= 3 && (discountPercent.trim() || discountFixedAmount.trim())
+      ? {
+          modality: commercialModality,
+          discountPercent: discountPercent.trim() || undefined,
+          discountFixedAmount: discountFixedAmount.trim() || undefined,
+          advanceMonths: commercialModality === 'ANNUAL_PIX_ADVANCE' ? Number(advanceMonths) : undefined,
+          coverageStartDate:
+            commercialModality === 'ANNUAL_PIX_ADVANCE' && coverageStartDate.trim()
+              ? coverageStartDate
+              : undefined,
+          commercialJustification: commercialJustification.trim(),
+        }
+      : undefined
+
   const previewPlanMutation = useMutation({
     mutationFn: () =>
       previewContractFinancialPlan(id as string, {
         firstDueDate,
+        commercialCondition: commercialConditionPayload,
       }),
     onSuccess(data) {
       setPlanPreview(data.preview.installments)
+      setPreviewMeta({
+        totalPlanned: data.preview.totalPlanned,
+        installmentCount: data.preview.installmentCount,
+        proportionalCount: data.preview.proportionalCount,
+        generationFormula: data.preview.generationFormula,
+        commercialCondition: data.preview.commercialCondition,
+      })
       setError(null)
     },
     onError(err) {
@@ -222,11 +295,89 @@ export function ContractDetailPage() {
     mutationFn: () =>
       createContractFinancialPlan(id as string, {
         firstDueDate,
+        commercialCondition: commercialConditionPayload,
       }),
     onSuccess() {
       setFeedback('Plano financeiro gerado com sucesso.')
       setError(null)
       setPlanPreview(null)
+      setPreviewMeta(null)
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const createAnnualAdvanceChargeMutation = useMutation({
+    mutationFn: () =>
+      createAnnualAdvanceCharge(id as string, {
+        dueDate: annualAdvanceDueDate,
+        idempotencyKey: `adv-${id}-${Date.now()}`,
+        notes: annualAdvanceNote || undefined,
+      }),
+    onSuccess(data) {
+      setFeedback(
+        data.idempotencyReplay
+          ? 'Cobranca anual ja existia para a chave de idempotencia informada.'
+          : 'Cobranca consolidada anual criada com sucesso.',
+      )
+      setError(null)
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const confirmAnnualAdvanceChargeMutation = useMutation({
+    mutationFn: (advanceChargeId: string) =>
+      confirmAnnualAdvanceChargePayment(advanceChargeId, {
+        notes: annualAdvanceNote || undefined,
+      }),
+    onSuccess(data) {
+      setFeedback(
+        data.idempotencyReplay
+          ? 'Pagamento anual ja estava confirmado anteriormente.'
+          : 'Pagamento anual confirmado e periodo quitado com sucesso.',
+      )
+      setError(null)
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const cancelAnnualAdvanceChargeMutation = useMutation({
+    mutationFn: (advanceChargeId: string) => cancelAnnualAdvanceCharge(advanceChargeId, annualAdvanceReason),
+    onSuccess() {
+      setFeedback('Cobranca anual cancelada com sucesso.')
+      setError(null)
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const failAnnualAdvanceChargeMutation = useMutation({
+    mutationFn: (advanceChargeId: string) => failAnnualAdvanceCharge(advanceChargeId, annualAdvanceReason),
+    onSuccess() {
+      setFeedback('Cobranca anual marcada como falha.')
+      setError(null)
+      refresh()
+    },
+    onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const reverseAnnualAdvanceChargeMutation = useMutation({
+    mutationFn: (advanceChargeId: string) => reverseAnnualAdvanceChargePayment(advanceChargeId, annualAdvanceReason),
+    onSuccess() {
+      setFeedback('Pagamento anual estornado com sucesso.')
+      setError(null)
       refresh()
     },
     onError(err) {
@@ -239,6 +390,8 @@ export function ContractDetailPage() {
   const contractEstablishments = contractEstablishmentsQuery.data?.data
   const financeSummary = financeSummaryQuery.data
   const installments = installmentsQuery.data?.data ?? []
+  const commercialHistory = commercialHistoryQuery.data?.versions ?? []
+  const annualAdvanceCharges = financeSummary?.plan?.annualAdvanceCharges ?? []
   const serviceCatalog = catalogQuery.data?.data ?? []
   const availableEstablishments = availableEstablishmentsQuery.data?.data
 
@@ -246,12 +399,26 @@ export function ContractDetailPage() {
     contractQuery.isLoading ||
     contractServicesQuery.isLoading ||
     contractEstablishmentsQuery.isLoading ||
-    catalogQuery.isLoading
+    catalogQuery.isLoading ||
+    commercialHistoryQuery.isLoading
 
   const establishmentOptions = useMemo(() => {
     const used = new Set((contractEstablishments ?? []).map((item) => item.establishmentId))
     return (availableEstablishments ?? []).filter((item) => !used.has(item.id))
   }, [availableEstablishments, contractEstablishments])
+
+  useEffect(() => {
+    if (financeSummary?.hasPlan) {
+      return
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(firstDueDate)) {
+      return
+    }
+
+    previewPlanMutation.mutate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstDueDate, financeSummary?.hasPlan])
 
   if (!id) {
     return <EmptyState title="Contrato invalido" description="Identificador do contrato nao foi informado." />
@@ -301,12 +468,63 @@ export function ContractDetailPage() {
               <div className="space-y-4">
                 <p className="text-sm text-slate-600">Plano financeiro ainda nao gerado.</p>
 
+                <div className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 md:grid-cols-3">
+                  <p><strong>Periodicidade:</strong> Mensal</p>
+                  <p><strong>Regra de vencimento:</strong> Dia {contract.dueDay}</p>
+                  <p><strong>Vigencia:</strong> {contract.startDate} ate {contract.endDate}</p>
+                </div>
+
                 <div className="grid gap-3 md:grid-cols-3">
                   <Input
                     type="date"
                     value={firstDueDate}
                     onChange={(event) => setFirstDueDate(event.target.value)}
                     required
+                  />
+                  <Select
+                    value={commercialModality}
+                    onChange={(event) =>
+                      setCommercialModality(event.target.value as 'MONTHLY_RECURRING' | 'ANNUAL_PIX_ADVANCE')
+                    }
+                  >
+                    <option value="MONTHLY_RECURRING">Mensal recorrente</option>
+                    <option value="ANNUAL_PIX_ADVANCE">Anual antecipado via Pix</option>
+                  </Select>
+                  <Input
+                    placeholder="Desconto percentual (ex.: 7.5)"
+                    value={discountPercent}
+                    onChange={(event) => setDiscountPercent(event.target.value)}
+                  />
+                  <Input
+                    placeholder="Desconto fixo (ex.: 500.00)"
+                    value={discountFixedAmount}
+                    onChange={(event) => setDiscountFixedAmount(event.target.value)}
+                  />
+                  {commercialModality === 'ANNUAL_PIX_ADVANCE' ? (
+                    <Input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={advanceMonths}
+                      onChange={(event) => setAdvanceMonths(Number(event.target.value))}
+                    />
+                  ) : (
+                    <Input value="Nao aplicavel para modo mensal" disabled />
+                  )}
+                  {commercialModality === 'ANNUAL_PIX_ADVANCE' ? (
+                    <Input
+                      type="date"
+                      value={coverageStartDate}
+                      onChange={(event) => setCoverageStartDate(event.target.value)}
+                    />
+                  ) : (
+                    <Input value="Inicio de cobertura anual nao aplicavel" disabled />
+                  )}
+                  <Input
+                    className="md:col-span-3"
+                    placeholder="Justificativa comercial (obrigatoria para aplicar desconto)"
+                    value={commercialJustification}
+                    onChange={(event) => setCommercialJustification(event.target.value)}
                   />
                   <Button onClick={() => previewPlanMutation.mutate()} disabled={!firstDueDate || previewPlanMutation.isPending}>
                     {previewPlanMutation.isPending ? 'Gerando preview...' : 'Gerar preview'}
@@ -319,12 +537,54 @@ export function ContractDetailPage() {
                 {planPreview ? (
                   <div className="rounded-xl border border-slate-200 p-3">
                     <p className="mb-2 text-sm font-semibold text-slate-800">Preview das parcelas</p>
-                    <div className="space-y-1 text-sm text-slate-700">
-                      {planPreview.map((item) => (
-                        <p key={item.number}>
-                          {item.number} - {item.dueDate} - {formatMoney(item.amount)}
-                        </p>
-                      ))}
+                    {previewMeta ? (
+                      <div className="mb-3 grid gap-2 rounded-lg border border-slate-100 bg-slate-50 p-2 text-xs text-slate-600 md:grid-cols-2 xl:grid-cols-4">
+                        <p><strong>Parcelas:</strong> {previewMeta.installmentCount}</p>
+                        <p><strong>Proporcionais:</strong> {previewMeta.proportionalCount}</p>
+                        <p><strong>Total previsto:</strong> {formatMoney(previewMeta.totalPlanned)}</p>
+                        <p><strong>Formula:</strong> dias cobertos / dias do ciclo</p>
+                        {previewMeta.commercialCondition ? (
+                          <>
+                            <p><strong>Modalidade comercial:</strong> {previewMeta.commercialCondition.modality}</p>
+                            <p><strong>Base elegivel:</strong> {formatMoney(previewMeta.commercialCondition.eligibleAmount)}</p>
+                            <p><strong>Desconto:</strong> {formatMoney(previewMeta.commercialCondition.discountAmount)}</p>
+                            <p><strong>Liquido:</strong> {formatMoney(previewMeta.commercialCondition.netAmount)}</p>
+                          </>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                            <th className="px-3 py-2">Parcela</th>
+                            <th className="px-3 py-2">Periodo</th>
+                            <th className="px-3 py-2">Vencimento</th>
+                            <th className="px-3 py-2">Tipo</th>
+                            <th className="px-3 py-2">Proporcao</th>
+                            <th className="px-3 py-2">Original</th>
+                            <th className="px-3 py-2">Desconto</th>
+                            <th className="px-3 py-2">Ajustado</th>
+                            <th className="px-3 py-2">Antecipada</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {planPreview.map((item) => (
+                            <tr key={item.number} className="border-b border-slate-100">
+                              <td className="px-3 py-2">{item.number}</td>
+                              <td className="px-3 py-2">{item.referenceStartDate} a {item.referenceEndDate}</td>
+                              <td className="px-3 py-2">{item.dueDate}</td>
+                              <td className="px-3 py-2"><Badge>{item.chargeType}</Badge></td>
+                              <td className="px-3 py-2">{item.proportion}</td>
+                              <td className="px-3 py-2">{formatMoney(item.amount)}</td>
+                              <td className="px-3 py-2">{formatMoney(item.discountAllocatedAmount)}</td>
+                              <td className="px-3 py-2">{formatMoney(item.adjustedAmount)}</td>
+                              <td className="px-3 py-2">{item.coveredByAdvance ? 'Sim' : 'Nao'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 ) : null}
@@ -332,11 +592,113 @@ export function ContractDetailPage() {
             ) : (
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  <p><strong>Periodicidade:</strong> Mensal</p>
+                  <p><strong>Regra de vencimento:</strong> Dia {financeSummary.plan?.dueDay ?? contract.dueDay}</p>
                   <p><strong>Valor contratado:</strong> {formatMoney(contract.totalValue)}</p>
                   <p><strong>Valor previsto:</strong> {formatMoney(financeSummary.summary?.totalPlanned ?? '0')}</p>
                   <p><strong>Recebido:</strong> {formatMoney(financeSummary.summary?.totalPaid ?? '0')}</p>
                   <p><strong>Saldo:</strong> {formatMoney(financeSummary.summary?.totalBalance ?? '0')}</p>
                   <p><strong>Vencido:</strong> {formatMoney(financeSummary.summary?.totalOverdue ?? '0')}</p>
+                </div>
+
+                {financeSummary.plan?.commercialCondition ? (
+                  <div className="grid gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 md:grid-cols-2 xl:grid-cols-4">
+                    <p><strong>Condicao:</strong> {financeSummary.plan.commercialCondition.modality}</p>
+                    <p><strong>Metodo:</strong> {financeSummary.plan.commercialCondition.paymentMethod}</p>
+                    <p><strong>Base elegivel:</strong> {formatMoney(financeSummary.plan.commercialCondition.eligibleAmount)}</p>
+                    <p><strong>Desconto:</strong> {formatMoney(financeSummary.plan.commercialCondition.discountAmount)}</p>
+                    <p><strong>Liquido:</strong> {formatMoney(financeSummary.plan.commercialCondition.netAmount)}</p>
+                    <p><strong>Cobertura:</strong> {financeSummary.plan.commercialCondition.coverageStartDate ?? '-'} ate {financeSummary.plan.commercialCondition.coverageEndDate ?? '-'}</p>
+                    <p><strong>Meses antecipados:</strong> {financeSummary.plan.commercialCondition.advanceMonths ?? '-'}</p>
+                    <p><strong>Versao:</strong> {financeSummary.plan.commercialCondition.version}</p>
+                  </div>
+                ) : null}
+
+                <div className="rounded-xl border border-slate-200 p-3">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-800">Antecipacao anual consolidada</p>
+                    <p className="text-xs text-slate-500">Status de cobranca e status de pagamento sao independentes.</p>
+                  </div>
+
+                  {annualAdvanceCharges.length === 0 ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-slate-600">
+                        Nenhuma cobranca consolidada foi emitida para a condicao atual.
+                      </p>
+                      <div className="grid gap-2 md:grid-cols-3">
+                        <Input
+                          type="date"
+                          value={annualAdvanceDueDate}
+                          onChange={(event) => setAnnualAdvanceDueDate(event.target.value)}
+                        />
+                        <Input
+                          placeholder="Observacao opcional"
+                          value={annualAdvanceNote}
+                          onChange={(event) => setAnnualAdvanceNote(event.target.value)}
+                        />
+                        <Button
+                          onClick={() => createAnnualAdvanceChargeMutation.mutate()}
+                          disabled={!annualAdvanceDueDate || createAnnualAdvanceChargeMutation.isPending}
+                        >
+                          {createAnnualAdvanceChargeMutation.isPending ? 'Emitindo...' : 'Emitir cobranca anual'}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <Input
+                        placeholder="Motivo para cancelar/falhar/estornar"
+                        value={annualAdvanceReason}
+                        onChange={(event) => setAnnualAdvanceReason(event.target.value)}
+                      />
+
+                      {annualAdvanceCharges.map((charge) => (
+                        <div key={charge.id} className="rounded-lg border border-slate-200 p-3">
+                          <div className="grid gap-2 text-sm md:grid-cols-2 xl:grid-cols-4">
+                            <p><strong>Referencia:</strong> {charge.referenceCode}</p>
+                            <p><strong>Cobertura:</strong> {charge.coverageStartDate} ate {charge.coverageEndDate}</p>
+                            <p><strong>Bruto:</strong> {formatMoney(charge.grossAmount)}</p>
+                            <p><strong>Desconto:</strong> {formatMoney(charge.discountAmount)}</p>
+                            <p><strong>Liquido:</strong> {formatMoney(charge.netAmount)}</p>
+                            <p><strong>Vencimento:</strong> {charge.dueDate}</p>
+                            <p><strong>Status cobranca:</strong> <Badge>{charge.effectiveBillingStatus}</Badge></p>
+                            <p><strong>Status pagamento:</strong> <Badge>{charge.paymentStatus}</Badge></p>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              variant="secondary"
+                              disabled={confirmAnnualAdvanceChargeMutation.isPending || charge.paymentStatus === 'CONFIRMED'}
+                              onClick={() => confirmAnnualAdvanceChargeMutation.mutate(charge.id)}
+                            >
+                              Confirmar pagamento
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              disabled={cancelAnnualAdvanceChargeMutation.isPending || charge.billingStatus === 'CANCELLED' || charge.paymentStatus === 'CONFIRMED'}
+                              onClick={() => cancelAnnualAdvanceChargeMutation.mutate(charge.id)}
+                            >
+                              Cancelar cobranca
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              disabled={failAnnualAdvanceChargeMutation.isPending || charge.billingStatus === 'FAILED' || charge.paymentStatus === 'CONFIRMED'}
+                              onClick={() => failAnnualAdvanceChargeMutation.mutate(charge.id)}
+                            >
+                              Marcar falha
+                            </Button>
+                            <Button
+                              variant="danger"
+                              disabled={reverseAnnualAdvanceChargeMutation.isPending || charge.paymentStatus !== 'CONFIRMED'}
+                              onClick={() => reverseAnnualAdvanceChargeMutation.mutate(charge.id)}
+                            >
+                              Estornar pagamento
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {installments.length === 0 ? (
@@ -347,10 +709,16 @@ export function ContractDetailPage() {
                       <thead>
                         <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
                           <th className="px-3 py-2">Parcela</th>
+                          <th className="px-3 py-2">Periodo</th>
                           <th className="px-3 py-2">Vencimento</th>
-                          <th className="px-3 py-2">Valor</th>
+                          <th className="px-3 py-2">Tipo</th>
+                          <th className="px-3 py-2">Proporcao</th>
+                          <th className="px-3 py-2">Original</th>
+                          <th className="px-3 py-2">Desconto</th>
+                          <th className="px-3 py-2">Ajustado</th>
                           <th className="px-3 py-2">Pago</th>
                           <th className="px-3 py-2">Saldo</th>
+                          <th className="px-3 py-2">Antecipada</th>
                           <th className="px-3 py-2">Status</th>
                         </tr>
                       </thead>
@@ -358,10 +726,16 @@ export function ContractDetailPage() {
                         {installments.map((item) => (
                           <tr key={item.id} className="border-b border-slate-100">
                             <td className="px-3 py-2">{item.number}</td>
+                            <td className="px-3 py-2">{item.referenceStartDate} a {item.referenceEndDate}</td>
                             <td className="px-3 py-2">{item.dueDate}</td>
+                            <td className="px-3 py-2"><Badge>{item.chargeType}</Badge></td>
+                            <td className="px-3 py-2">{item.proportion}</td>
+                            <td className="px-3 py-2">{formatMoney(item.originalAmount)}</td>
+                            <td className="px-3 py-2">{formatMoney(item.discountAllocatedAmount)}</td>
                             <td className="px-3 py-2">{formatMoney(item.adjustedAmount)}</td>
                             <td className="px-3 py-2">{formatMoney(item.paidAmount)}</td>
                             <td className="px-3 py-2">{formatMoney(item.balance)}</td>
+                            <td className="px-3 py-2">{item.coveredByAdvance ? 'Sim' : 'Nao'}</td>
                             <td className="px-3 py-2"><Badge>{item.status}</Badge></td>
                           </tr>
                         ))}
@@ -369,6 +743,50 @@ export function ContractDetailPage() {
                     </table>
                   </div>
                 )}
+              </div>
+            )}
+          </Card>
+
+          <Card title="Historico comercial" subtitle="Versoes, justificativas e vinculo com cobrancas anuais.">
+            {commercialHistory.length === 0 ? (
+              <p className="text-sm text-slate-600">Nenhuma versao comercial registrada para este contrato.</p>
+            ) : (
+              <div className="space-y-3">
+                {commercialHistory.map((version) => (
+                  <div key={version.id} className="rounded-xl border border-slate-200 p-4">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <Badge>{version.status}</Badge>
+                      <span className="text-sm font-semibold text-slate-800">Versao {version.version}</span>
+                    </div>
+                    <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2 xl:grid-cols-4">
+                      <p><strong>Modalidade:</strong> {version.modality}</p>
+                      <p><strong>Metodo:</strong> {version.paymentMethod}</p>
+                      <p><strong>Percentual:</strong> {version.discountPercent ?? '-'}</p>
+                      <p><strong>Desconto fixo:</strong> {formatMoney(version.discountFixedAmount)}</p>
+                      <p><strong>Valor original:</strong> {formatMoney(version.eligibleAmount)}</p>
+                      <p><strong>Desconto:</strong> {formatMoney(version.discountAmount)}</p>
+                      <p><strong>Liquido:</strong> {formatMoney(version.netAmount)}</p>
+                      <p><strong>Meses:</strong> {version.advanceMonths ?? '-'}</p>
+                      <p><strong>Cobertura:</strong> {version.coverageStartDate ?? '-'} ate {version.coverageEndDate ?? '-'}</p>
+                      <p><strong>Responsavel:</strong> {version.grantedByUserId}</p>
+                      <p><strong>Data:</strong> {version.createdAt.slice(0, 10)}</p>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600"><strong>Justificativa:</strong> {version.commercialJustification}</p>
+
+                    {version.annualAdvanceCharges.length > 0 ? (
+                      <div className="mt-3 space-y-2 rounded-lg border border-slate-100 bg-slate-50 p-2 text-sm">
+                        <p className="font-semibold text-slate-700">Cobrancas/Pagamentos vinculados</p>
+                        {version.annualAdvanceCharges.map((charge) => (
+                          <p key={charge.id} className="text-slate-700">
+                            {charge.referenceCode} | Cobranca: {charge.effectiveBillingStatus} | Pagamento: {charge.paymentStatus} | Liquido: {formatMoney(charge.netAmount)}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-slate-500">Sem cobrancas anuais vinculadas nesta versao.</p>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </Card>

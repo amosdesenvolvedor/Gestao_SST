@@ -8,8 +8,19 @@ export type FinanceInstallment = {
   financialPlanId: string
   number: number
   dueDate: string
+  referenceStartDate: string
+  referenceEndDate: string
+  cycleStartDate: string
+  cycleEndDate: string
+  cycleDays: number
+  coveredDays: number
+  chargeType: 'INTEGRAL' | 'PROPORCIONAL'
+  proportion: string
   originalAmount: string
   adjustedAmount: string
+  discountAllocatedAmount: string
+  coveredByAdvance: boolean
+  commercialConditionId: string | null
   paidAmount: string
   balance: string
   status: FinanceInstallmentStatus
@@ -44,6 +55,61 @@ export type FinanceSummary = {
   hasDelinquency: boolean
 }
 
+export type AnnualAdvanceCharge = {
+  id: string
+  contractId: string
+  commercialConditionId: string
+  referenceCode: string
+  idempotencyKey: string
+  internalReference: string | null
+  paymentMethod: PaymentMethod
+  grossAmount: string
+  discountAmount: string
+  netAmount: string
+  coverageStartDate: string
+  coverageEndDate: string
+  dueDate: string
+  billingStatus: 'PENDING_PAYMENT' | 'PAID' | 'CANCELLED' | 'FAILED' | 'REVERSED'
+  effectiveBillingStatus: 'PENDING_PAYMENT' | 'OVERDUE' | 'PAID' | 'CANCELLED' | 'FAILED' | 'REVERSED'
+  paymentStatus: 'NOT_CONFIRMED' | 'CONFIRMED' | 'REVERSED'
+  paidAt: string | null
+  cancelledAt: string | null
+  failedAt: string | null
+  reversedAt: string | null
+  createdByUserId: string
+  confirmedByUserId: string | null
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+  installments: Array<{
+    installmentId: string
+    installmentNumber: number
+    dueDate: string
+    allocatedAmount: string
+    installmentStatus: 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED'
+  }>
+}
+
+export type ContractCommercialHistoryVersion = {
+  id: string
+  version: number
+  modality: 'MONTHLY_RECURRING' | 'ANNUAL_PIX_ADVANCE'
+  paymentMethod: PaymentMethod
+  discountPercent: string | null
+  discountFixedAmount: string
+  eligibleAmount: string
+  discountAmount: string
+  netAmount: string
+  advanceMonths: number | null
+  coverageStartDate: string | null
+  coverageEndDate: string | null
+  commercialJustification: string
+  grantedByUserId: string
+  createdAt: string
+  status: 'CURRENT' | 'SUPERSEDED'
+  annualAdvanceCharges: AnnualAdvanceCharge[]
+}
+
 export type FinancePlan = {
   id: string
   contractId: string
@@ -56,6 +122,24 @@ export type FinancePlan = {
   generatedAt: string
   generatedByUserId: string | null
   notes: string | null
+  commercialCondition?: {
+    id: string
+    version: number
+    modality: 'MONTHLY_RECURRING' | 'ANNUAL_PIX_ADVANCE'
+    paymentMethod: PaymentMethod
+    discountPercent: string | null
+    discountFixedAmount: string
+    eligibleAmount: string
+    discountAmount: string
+    netAmount: string
+    advanceMonths: number | null
+    coverageStartDate: string | null
+    coverageEndDate: string | null
+    commercialJustification: string
+    grantedByUserId: string
+    createdAt: string
+  } | null
+  annualAdvanceCharges?: AnnualAdvanceCharge[]
   createdAt: string
   updatedAt: string
   summary: FinanceSummary

@@ -3,6 +3,7 @@ import type { ContractStatus, PaymentMethod, ServiceCategory } from '@prisma/cli
 import type { AuthUser } from '../../plugins/auth.js'
 import { createAuditLog } from '../../shared/audit.js'
 import { makePagination } from '../../shared/pagination.js'
+import { ensureFinancialPlanForContractService } from '../finance/finance.service.js'
 import {
   countContractEstablishments,
   countContracts,
@@ -508,6 +509,10 @@ export async function changeContractStatusService(actor: AuthUser, contractId: s
       to: nextStatus,
     },
   })
+
+  if (nextStatus === 'SIGNED' || nextStatus === 'ACTIVE') {
+    await ensureFinancialPlanForContractService(actor, contractId)
+  }
 
   return mapContract(updated)
 }

@@ -17,12 +17,64 @@ export const chargeIdParamsSchema = z.object({
   id: z.string().cuid(),
 })
 
+export const annualAdvanceChargeIdParamsSchema = z.object({
+  id: z.string().cuid(),
+})
+
 export const createFinancialPlanBodySchema = z.object({
   installmentCount: z.number().int().positive().max(360).optional(),
   totalAmount: z.string().trim().regex(/^\d+(\.\d{1,2})?$/).optional(),
   dueDay: z.number().int().min(1).max(31).optional(),
   firstDueDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().trim().max(500).optional(),
+  commercialCondition: z
+    .object({
+      modality: z.enum(['MONTHLY_RECURRING', 'ANNUAL_PIX_ADVANCE']),
+      discountPercent: z.string().trim().regex(/^\d+(\.\d{1,2})?$/).optional(),
+      discountFixedAmount: z.string().trim().regex(/^\d+(\.\d{1,2})?$/).optional(),
+      advanceMonths: z.number().int().positive().max(60).optional(),
+      coverageStartDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      commercialJustification: z.string().trim().min(3).max(2000),
+    })
+    .optional(),
+})
+
+export const createAnnualAdvanceChargeBodySchema = z.object({
+  dueDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+  idempotencyKey: z.string().trim().min(8).max(120),
+  internalReference: z.string().trim().max(120).optional(),
+  notes: z.string().trim().max(500).optional(),
+})
+
+export const confirmAnnualAdvancePaymentBodySchema = z.object({
+  paidAt: z.string().trim().min(10).optional(),
+  externalReference: z.string().trim().max(120).optional(),
+  notes: z.string().trim().max(500).optional(),
+})
+
+export const cancelAnnualAdvanceChargeBodySchema = z.object({
+  reason: z.string().trim().min(3).max(500),
+})
+
+export const failAnnualAdvanceChargeBodySchema = z.object({
+  reason: z.string().trim().min(3).max(500),
+})
+
+export const reverseAnnualAdvancePaymentBodySchema = z.object({
+  reason: z.string().trim().min(3).max(500),
+})
+
+export const createAnnualAdvancePixChargeBodySchema = z.object({
+  idempotencyKey: z.string().trim().min(8).max(120),
+  payerEmail: z.string().email().optional(),
+  expiresAt: z.string().datetime().optional(),
+})
+
+export const mercadoPagoWebhookQuerySchema = z.object({
+  topic: z.string().trim().optional(),
+  type: z.string().trim().optional(),
+  action: z.string().trim().optional(),
+  'data.id': z.string().trim().optional(),
 })
 
 export const listContractInstallmentsQuerySchema = z.object({
@@ -66,6 +118,15 @@ export const createChargeBodySchema = z.object({
   amount: z.string().trim().regex(/^\d+(\.\d{1,2})?$/),
   externalId: z.string().trim().max(120).optional(),
   idempotencyKey: z.string().trim().max(120).optional(),
+})
+
+export const createChargePaymentLinkBodySchema = z.object({
+  idempotencyKey: z.string().trim().min(8).max(120),
+  title: z.string().trim().min(3).max(120).optional(),
+  payerEmail: z.string().email().optional(),
+  successUrl: z.string().url().optional(),
+  failureUrl: z.string().url().optional(),
+  pendingUrl: z.string().url().optional(),
 })
 
 export const cancelChargeBodySchema = z.object({

@@ -33,6 +33,9 @@ Status: concluida (plano financeiro de contrato, parcelas, cobrancas, pagamentos
 ## FASE 07
 Nucleo tecnico SST
 
+Status: planejamento arquitetural concluido na Etapa 07A.
+Referencia: `PHASE_07A_CANONICAL_SST_MODEL.md`.
+
 ## FASE 08
 Templates por segmento
 

@@ -24,8 +24,11 @@ export function AdminLayout({ children }: PropsWithChildren) {
   const [open, setOpen] = useState(false)
 
   const handleLogout = async () => {
-    await logout()
-    navigate('/login')
+    try {
+      await logout()
+    } finally {
+      navigate('/login', { replace: true })
+    }
   }
 
   return (

@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "ContractCommercialCondition_coverageStartDate_coverageEndDate_i" RENAME TO "ContractCommercialCondition_coverageStartDate_coverageEndDa_idx";

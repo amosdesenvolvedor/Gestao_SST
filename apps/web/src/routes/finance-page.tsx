@@ -13,7 +13,13 @@ import { Select } from '@/components/select'
 import { useAuth } from '@/features/auth/auth-context'
 import { ApiError } from '@/lib/api-client'
 import { listClients } from '@/services/clients.service'
-import { createInstallmentPayment, getFinanceOverview, listFinanceReceivables } from '@/services/finance.service'
+import {
+  createChargePaymentLink,
+  createInstallmentCharge,
+  createInstallmentPayment,
+  getFinanceOverview,
+  listFinanceReceivables,
+} from '@/services/finance.service'
 import type { FinanceInstallmentStatus } from '@/types/finance'
 
 function toApiMessage(error: unknown): string {
@@ -92,6 +98,17 @@ export function FinancePage() {
     notes: '',
   })
 
+  const [cardLinkTarget, setCardLinkTarget] = useState<{ id: string; balance: string; label: string } | null>(null)
+  const [cardLinkForm, setCardLinkForm] = useState({
+    amount: '',
+    title: 'Pagamento cartao',
+    payerEmail: '',
+    successUrl: '',
+    failureUrl: '',
+    pendingUrl: '',
+  })
+  const [generatedCardLink, setGeneratedCardLink] = useState<string | null>(null)
+
   const overviewQuery = useQuery({
     queryKey: ['finance-overview', monthRef],
     queryFn: () => getFinanceOverview(monthRef || undefined),
@@ -143,6 +160,47 @@ export function FinancePage() {
       queryClient.invalidateQueries({ queryKey: ['finance-overview'] })
     },
     onError(err) {
+      setError(toApiMessage(err))
+    },
+  })
+
+  const cardLinkMutation = useMutation({
+    mutationFn: async (input: {
+      installmentId: string
+      amount: string
+      title?: string
+      payerEmail?: string
+      successUrl?: string
+      failureUrl?: string
+      pendingUrl?: string
+    }) => {
+      const stamp = Date.now()
+      const chargeResponse = await createInstallmentCharge(input.installmentId, {
+        provider: 'MANUAL',
+        method: 'CREDIT_CARD',
+        amount: input.amount,
+        idempotencyKey: `charge-card-${stamp}`,
+        externalId: `CARD-LINK-${stamp}`,
+      })
+
+      return createChargePaymentLink(chargeResponse.charge.id, {
+        idempotencyKey: `card-link-${stamp}`,
+        title: input.title,
+        payerEmail: input.payerEmail,
+        successUrl: input.successUrl,
+        failureUrl: input.failureUrl,
+        pendingUrl: input.pendingUrl,
+      })
+    },
+    onSuccess(result) {
+      const link = result.paymentLink.sandboxInitPoint || result.paymentLink.initPoint
+      setGeneratedCardLink(link)
+      setFeedback('Link de pagamento de cartao gerado com sucesso.')
+      setError(null)
+      queryClient.invalidateQueries({ queryKey: ['finance-receivables'] })
+    },
+    onError(err) {
+      setGeneratedCardLink(null)
       setError(toApiMessage(err))
     },
   })
@@ -299,26 +357,51 @@ export function FinancePage() {
                       <Badge className={statusTone(item.status)}>{item.status}</Badge>
                     </td>
                     <td className="px-3 py-2">
-                      {can('finance.payments.create') && item.status !== 'PAID' && item.status !== 'CANCELLED' ? (
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            setPaymentTarget({
-                              id: item.id,
-                              balance: item.balance,
-                              label: `${item.contract.contractNumber} - Parcela ${item.number}`,
-                            })
-                            setPaymentForm((state) => ({
-                              ...state,
-                              amount: item.balance,
-                            }))
-                          }}
-                        >
-                          Registrar pagamento
-                        </Button>
-                      ) : (
-                        '-'
-                      )}
+                      <div className="flex flex-wrap gap-2">
+                        {can('finance.payments.create') && item.status !== 'PAID' && item.status !== 'CANCELLED' ? (
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setPaymentTarget({
+                                id: item.id,
+                                balance: item.balance,
+                                label: `${item.contract.contractNumber} - Parcela ${item.number}`,
+                              })
+                              setPaymentForm((state) => ({
+                                ...state,
+                                amount: item.balance,
+                              }))
+                            }}
+                          >
+                            Registrar pagamento
+                          </Button>
+                        ) : null}
+                        {can('finance.charges.create') && item.status !== 'PAID' && item.status !== 'CANCELLED' && Number(item.balance) > 0 ? (
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setCardLinkTarget({
+                                id: item.id,
+                                balance: item.balance,
+                                label: `${item.contract.contractNumber} - Parcela ${item.number}`,
+                              })
+                              setGeneratedCardLink(null)
+                              const origin = window.location.origin
+                              setCardLinkForm({
+                                amount: item.balance,
+                                title: `Pagamento ${item.contract.contractNumber} parcela ${item.number}`,
+                                payerEmail: '',
+                                successUrl: `${origin}/pagamento/sucesso`,
+                                failureUrl: `${origin}/pagamento/falha`,
+                                pendingUrl: `${origin}/pagamento/pendente`,
+                              })
+                            }}
+                          >
+                            Gerar link cartao
+                          </Button>
+                        ) : null}
+                        {!can('finance.payments.create') && !can('finance.charges.create') ? '-' : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -393,6 +476,90 @@ export function FinancePage() {
               </Button>
               <p className="text-sm text-slate-600">Saldo atual: {formatMoney(paymentTarget.balance)}</p>
             </div>
+          </form>
+        </Card>
+      ) : null}
+
+      {cardLinkTarget ? (
+        <Card title="Gerar link de pagamento por cartao" subtitle={cardLinkTarget.label}>
+          <form
+            className="grid gap-3 md:grid-cols-3"
+            onSubmit={(event) => {
+              event.preventDefault()
+              cardLinkMutation.mutate({
+                installmentId: cardLinkTarget.id,
+                amount: cardLinkForm.amount,
+                title: cardLinkForm.title || undefined,
+                payerEmail: cardLinkForm.payerEmail || undefined,
+                successUrl: cardLinkForm.successUrl || undefined,
+                failureUrl: cardLinkForm.failureUrl || undefined,
+                pendingUrl: cardLinkForm.pendingUrl || undefined,
+              })
+            }}
+          >
+            <Input
+              placeholder="Valor da cobranca"
+              value={cardLinkForm.amount}
+              onChange={(event) => setCardLinkForm((state) => ({ ...state, amount: event.target.value }))}
+              required
+            />
+            <Input
+              placeholder="Titulo exibido no checkout"
+              value={cardLinkForm.title}
+              onChange={(event) => setCardLinkForm((state) => ({ ...state, title: event.target.value }))}
+            />
+            <Input
+              placeholder="Email do pagador (opcional)"
+              value={cardLinkForm.payerEmail}
+              onChange={(event) => setCardLinkForm((state) => ({ ...state, payerEmail: event.target.value }))}
+            />
+            <Input
+              placeholder="URL de sucesso"
+              value={cardLinkForm.successUrl}
+              onChange={(event) => setCardLinkForm((state) => ({ ...state, successUrl: event.target.value }))}
+            />
+            <Input
+              placeholder="URL de falha"
+              value={cardLinkForm.failureUrl}
+              onChange={(event) => setCardLinkForm((state) => ({ ...state, failureUrl: event.target.value }))}
+            />
+            <Input
+              placeholder="URL pendente"
+              value={cardLinkForm.pendingUrl}
+              onChange={(event) => setCardLinkForm((state) => ({ ...state, pendingUrl: event.target.value }))}
+            />
+
+            <div className="md:col-span-3 flex flex-wrap items-center gap-2">
+              <Button type="submit" disabled={cardLinkMutation.isPending}>
+                {cardLinkMutation.isPending ? 'Gerando...' : 'Gerar link checkout'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setCardLinkTarget(null)
+                  setGeneratedCardLink(null)
+                }}
+              >
+                Fechar
+              </Button>
+              <p className="text-sm text-slate-600">Saldo atual: {formatMoney(cardLinkTarget.balance)}</p>
+            </div>
+
+            {generatedCardLink ? (
+              <div className="md:col-span-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                <p className="font-medium">Link gerado:</p>
+                <p className="mt-1 break-all">{generatedCardLink}</p>
+                <div className="mt-2 flex gap-2">
+                  <Button type="button" variant="secondary" onClick={() => window.open(generatedCardLink, '_blank', 'noopener,noreferrer')}>
+                    Abrir checkout
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => navigator.clipboard.writeText(generatedCardLink)}>
+                    Copiar link
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </form>
         </Card>
       ) : null}

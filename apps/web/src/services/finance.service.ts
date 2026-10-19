@@ -1,6 +1,8 @@
 import type { ChargeProvider, PaymentMethod } from '@gestao-sst/shared'
 import { apiClient } from '@/lib/api-client'
 import type {
+  AnnualAdvanceCharge,
+  ContractCommercialHistoryVersion,
   FinanceCharge,
   FinanceInstallment,
   FinanceOverview,
@@ -48,6 +50,14 @@ export function previewContractFinancialPlan(
     dueDay?: number
     firstDueDate: string
     notes?: string
+    commercialCondition?: {
+      modality: 'MONTHLY_RECURRING' | 'ANNUAL_PIX_ADVANCE'
+      discountPercent?: string
+      discountFixedAmount?: string
+      advanceMonths?: number
+      coverageStartDate?: string
+      commercialJustification: string
+    }
   },
 ) {
   return apiClient<{
@@ -57,10 +67,31 @@ export function previewContractFinancialPlan(
       totalAmount: string
       dueDay: number
       firstDueDate: string
+      generationFormula: string
+      proportionalCount: number
+      totalPlanned: string
+      commercialCondition: {
+        modality: 'MONTHLY_RECURRING' | 'ANNUAL_PIX_ADVANCE'
+        paymentMethod: PaymentMethod
+        eligibleAmount: string
+        discountAmount: string
+        netAmount: string
+        coverageStartDate: string | null
+        coverageEndDate: string | null
+        advanceMonths: number | null
+        justification: string | null
+      } | null
       installments: Array<{
         number: number
         dueDate: string
         amount: string
+        adjustedAmount: string
+        discountAllocatedAmount: string
+        coveredByAdvance: boolean
+        referenceStartDate: string
+        referenceEndDate: string
+        chargeType: 'INTEGRAL' | 'PROPORCIONAL'
+        proportion: string
       }>
     }
   }>(`/api/v1/contracts/${contractId}/financial-plan/preview`, {
@@ -77,6 +108,14 @@ export function createContractFinancialPlan(
     dueDay?: number
     firstDueDate: string
     notes?: string
+    commercialCondition?: {
+      modality: 'MONTHLY_RECURRING' | 'ANNUAL_PIX_ADVANCE'
+      discountPercent?: string
+      discountFixedAmount?: string
+      advanceMonths?: number
+      coverageStartDate?: string
+      commercialJustification: string
+    }
   },
 ) {
   return apiClient<{
@@ -85,7 +124,25 @@ export function createContractFinancialPlan(
       number: number
       dueDate: string
       amount: string
+      adjustedAmount: string
+      discountAllocatedAmount: string
+      coveredByAdvance: boolean
+      referenceStartDate: string
+      referenceEndDate: string
+      chargeType: 'INTEGRAL' | 'PROPORCIONAL'
+      proportion: string
     }>
+    commercialCondition: {
+      modality: 'MONTHLY_RECURRING' | 'ANNUAL_PIX_ADVANCE'
+      paymentMethod: PaymentMethod
+      eligibleAmount: string
+      discountAmount: string
+      netAmount: string
+      coverageStartDate: string | null
+      coverageEndDate: string | null
+      advanceMonths: number | null
+      justification: string | null
+    } | null
   }>(`/api/v1/contracts/${contractId}/financial-plan`, {
     method: 'POST',
     body: JSON.stringify(input),
@@ -102,6 +159,70 @@ export function getContractFinanceSummary(contractId: string) {
     plan: Omit<FinancePlan, 'summary'> | null
     summary: FinancePlan['summary'] | null
   }>(`/api/v1/contracts/${contractId}/finance-summary`)
+}
+
+export function getContractCommercialHistory(contractId: string) {
+  return apiClient<{
+    contractId: string
+    currentConditionId: string | null
+    versions: ContractCommercialHistoryVersion[]
+  }>(`/api/v1/contracts/${contractId}/commercial-history`)
+}
+
+export function createAnnualAdvanceCharge(
+  contractId: string,
+  input: {
+    dueDate: string
+    idempotencyKey: string
+    internalReference?: string
+    notes?: string
+  },
+) {
+  return apiClient<{
+    charge: AnnualAdvanceCharge
+    idempotencyReplay: boolean
+  }>(`/api/v1/contracts/${contractId}/annual-advance-charge`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function confirmAnnualAdvanceChargePayment(
+  id: string,
+  input: {
+    paidAt?: string
+    externalReference?: string
+    notes?: string
+  },
+) {
+  return apiClient<{
+    charge: AnnualAdvanceCharge
+    idempotencyReplay: boolean
+  }>(`/api/v1/annual-advance-charges/${id}/confirm-payment`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export function cancelAnnualAdvanceCharge(id: string, reason: string) {
+  return apiClient<{ charge: AnnualAdvanceCharge }>(`/api/v1/annual-advance-charges/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export function failAnnualAdvanceCharge(id: string, reason: string) {
+  return apiClient<{ charge: AnnualAdvanceCharge }>(`/api/v1/annual-advance-charges/${id}/fail`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export function reverseAnnualAdvanceChargePayment(id: string, reason: string) {
+  return apiClient<{ charge: AnnualAdvanceCharge }>(`/api/v1/annual-advance-charges/${id}/reverse-payment`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
 }
 
 export function listContractInstallments(
@@ -203,5 +324,29 @@ export function cancelCharge(id: string, reason?: string) {
   return apiClient<{ charge: FinanceCharge }>(`/api/v1/charges/${id}/cancel`, {
     method: 'POST',
     body: JSON.stringify({ reason }),
+  })
+}
+
+export function createChargePaymentLink(
+  id: string,
+  input: {
+    idempotencyKey: string
+    title?: string
+    payerEmail?: string
+    successUrl?: string
+    failureUrl?: string
+    pendingUrl?: string
+  },
+) {
+  return apiClient<{
+    charge: FinanceCharge
+    paymentLink: {
+      preferenceId: string
+      initPoint: string | null
+      sandboxInitPoint: string | null
+    }
+  }>(`/api/v1/charges/${id}/payment-link`, {
+    method: 'POST',
+    body: JSON.stringify(input),
   })
 }

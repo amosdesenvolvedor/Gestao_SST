@@ -10,6 +10,13 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET deve ter no minimo 32 caracteres.'),
   JWT_EXPIRES_IN: z.string().default('8h'),
   AUTH_COOKIE_NAME: z.string().default('gestao_sst_session'),
+  MERCADO_PAGO_ENABLED: z.coerce.boolean().default(false),
+  MERCADO_PAGO_ACCESS_TOKEN: z.string().optional(),
+  MERCADO_PAGO_WEBHOOK_SECRET: z.string().optional(),
+  MERCADO_PAGO_WEBHOOK_NOTIFICATION_URL: z.string().url().optional(),
+  MERCADO_PAGO_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  MERCADO_PAGO_SIGNATURE_TOLERANCE_SECONDS: z.coerce.number().int().positive().default(300),
+  MERCADO_PAGO_TEST_PAYER_EMAIL: z.string().email().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

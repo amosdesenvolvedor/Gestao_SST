@@ -7,6 +7,7 @@ import { usersRoutes } from './modules/users/users.routes.js'
 import { professionalsRoutes } from './modules/professionals/professionals.routes.js'
 import { clientsRoutes } from './modules/clients/clients.routes.js'
 import { serviceCatalogRoutes } from './modules/service-catalog/service-catalog.routes.js'
+import { sstOrganizationRoutes } from './modules/sst-organization/sst-organization.routes.js'
 import { contractsRoutes } from './modules/contracts/contracts.routes.js'
 import { clientPortalRoutes } from './modules/client-portal/client-portal.routes.js'
 import { financeRoutes } from './modules/finance/finance.routes.js'
@@ -26,6 +27,7 @@ export function buildApp() {
   app.register(professionalsRoutes, { prefix: '/api/v1' })
   app.register(clientsRoutes, { prefix: '/api/v1' })
   app.register(serviceCatalogRoutes, { prefix: '/api/v1' })
+  app.register(sstOrganizationRoutes, { prefix: '/api/v1' })
   app.register(contractsRoutes, { prefix: '/api/v1' })
   app.register(clientPortalRoutes, { prefix: '/api/v1' })
   app.register(financeRoutes, { prefix: '/api/v1' })

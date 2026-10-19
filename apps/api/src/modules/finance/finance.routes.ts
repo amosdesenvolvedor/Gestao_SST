@@ -1,36 +1,54 @@
 import type { FastifyInstance } from 'fastify'
 import { authorizePermissions } from '../../plugins/guards.js'
 import {
+  annualAdvanceChargeIdParamsSchema,
+  cancelAnnualAdvanceChargeBodySchema,
   cancelChargeBodySchema,
   cancelInstallmentBodySchema,
   chargeIdParamsSchema,
+  confirmAnnualAdvancePaymentBodySchema,
   contractIdParamsSchema,
+  createAnnualAdvanceChargeBodySchema,
+  createAnnualAdvancePixChargeBodySchema,
   createChargeBodySchema,
+  createChargePaymentLinkBodySchema,
   createFinancialPlanBodySchema,
   createPaymentBodySchema,
+  failAnnualAdvanceChargeBodySchema,
   financeOverviewQuerySchema,
   installmentIdParamsSchema,
   listContractInstallmentsQuerySchema,
+  mercadoPagoWebhookQuerySchema,
   paymentIdParamsSchema,
   receivablesQuerySchema,
+  reverseAnnualAdvancePaymentBodySchema,
   reversePaymentBodySchema,
   updateInstallmentBodySchema,
 } from './finance.schema.js'
 import {
+  cancelAnnualAdvanceChargeService,
   cancelChargeService,
   cancelInstallmentService,
+  confirmAnnualAdvanceChargePaymentService,
+  createAnnualAdvancePixChargeService,
+  createAnnualAdvanceChargeService,
+  createChargeCardPaymentLinkService,
   createFinancialPlanService,
   createInstallmentChargeService,
+  failAnnualAdvanceChargeService,
   getContractFinancialPlanService,
   getContractFinancialSummaryService,
   getFinanceOverviewService,
   getInstallmentByIdService,
+  listContractCommercialHistoryService,
   listContractInstallmentsService,
   listInstallmentChargesService,
   listInstallmentPaymentsService,
   listReceivablesService,
+  processMercadoPagoWebhookService,
   previewFinancialPlanService,
   recordInstallmentPaymentService,
+  reverseAnnualAdvancePaymentService,
   reversePaymentService,
   updateInstallmentService,
 } from './finance.service.js'
@@ -49,7 +67,7 @@ function handleFinanceError(
     return reply.code(404).send({ message })
   }
 
-  if (message.includes('ja existe') || message.includes('ja estornado') || message.includes('ja cancelada')) {
+  if (message.includes('ja existe') || message.includes('ja estornado') || message.includes('ja cancelada') || message.includes('Conflito')) {
     return reply.code(409).send({ message })
   }
 
@@ -125,8 +143,12 @@ export async function financeRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ message: 'Identificador invalido.' })
     }
 
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
     try {
-      const plan = await getContractFinancialPlanService(parsedParams.data.contractId)
+      const plan = await getContractFinancialPlanService(request.authUser, parsedParams.data.contractId)
       if (!plan) {
         return reply.code(404).send({ message: 'Plano financeiro nao encontrado para o contrato.' })
       }
@@ -137,7 +159,7 @@ export async function financeRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
-  app.post('/contracts/:contractId/financial-plan/preview', { preHandler: [authorizePermissions(['finance.plan.create'])] }, async (request, reply) => {
+  app.post('/contracts/:contractId/financial-plan/preview', { preHandler: [authorizePermissions(['finance.plan.create', 'finance.commercial.manage'])] }, async (request, reply) => {
     const parsedParams = contractIdParamsSchema.safeParse(request.params)
     const parsedBody = createFinancialPlanBodySchema.safeParse(request.body)
 
@@ -145,15 +167,19 @@ export async function financeRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ message: 'Dados invalidos.' })
     }
 
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
     try {
-      const preview = await previewFinancialPlanService(parsedParams.data.contractId, parsedBody.data)
+      const preview = await previewFinancialPlanService(request.authUser, parsedParams.data.contractId, parsedBody.data)
       return reply.send({ preview })
     } catch (error) {
       return handleFinanceError(error, reply)
     }
   })
 
-  app.post('/contracts/:contractId/financial-plan', { preHandler: [authorizePermissions(['finance.plan.create'])] }, async (request, reply) => {
+  app.post('/contracts/:contractId/financial-plan', { preHandler: [authorizePermissions(['finance.plan.create', 'finance.commercial.manage'])] }, async (request, reply) => {
     const parsedParams = contractIdParamsSchema.safeParse(request.params)
     const parsedBody = createFinancialPlanBodySchema.safeParse(request.body)
 
@@ -173,6 +199,171 @@ export async function financeRoutes(app: FastifyInstance): Promise<void> {
     }
   })
 
+  app.get('/contracts/:contractId/commercial-history', { preHandler: [authorizePermissions(['finance.read'])] }, async (request, reply) => {
+    const parsedParams = contractIdParamsSchema.safeParse(request.params)
+
+    if (!parsedParams.success) {
+      return reply.code(400).send({ message: 'Identificador invalido.' })
+    }
+
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
+    try {
+      const result = await listContractCommercialHistoryService(request.authUser, parsedParams.data.contractId)
+      return reply.send(result)
+    } catch (error) {
+      return handleFinanceError(error, reply)
+    }
+  })
+
+  app.post('/contracts/:contractId/annual-advance-charge', { preHandler: [authorizePermissions(['finance.commercial.manage'])] }, async (request, reply) => {
+    const parsedParams = contractIdParamsSchema.safeParse(request.params)
+    const parsedBody = createAnnualAdvanceChargeBodySchema.safeParse(request.body)
+
+    if (!parsedParams.success || !parsedBody.success) {
+      return reply.code(400).send({ message: 'Dados invalidos.' })
+    }
+
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
+    try {
+      const result = await createAnnualAdvanceChargeService(request.authUser, parsedParams.data.contractId, parsedBody.data)
+      return reply.code(201).send(result)
+    } catch (error) {
+      return handleFinanceError(error, reply)
+    }
+  })
+
+  app.post('/annual-advance-charges/:id/confirm-payment', { preHandler: [authorizePermissions(['finance.commercial.manage', 'finance.payments.create'])] }, async (request, reply) => {
+    const parsedParams = annualAdvanceChargeIdParamsSchema.safeParse(request.params)
+    const parsedBody = confirmAnnualAdvancePaymentBodySchema.safeParse(request.body)
+
+    if (!parsedParams.success || !parsedBody.success) {
+      return reply.code(400).send({ message: 'Dados invalidos.' })
+    }
+
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
+    try {
+      const result = await confirmAnnualAdvanceChargePaymentService(request.authUser, parsedParams.data.id, parsedBody.data)
+      return reply.send(result)
+    } catch (error) {
+      return handleFinanceError(error, reply)
+    }
+  })
+
+  app.post('/annual-advance-charges/:id/cancel', { preHandler: [authorizePermissions(['finance.commercial.manage'])] }, async (request, reply) => {
+    const parsedParams = annualAdvanceChargeIdParamsSchema.safeParse(request.params)
+    const parsedBody = cancelAnnualAdvanceChargeBodySchema.safeParse(request.body)
+
+    if (!parsedParams.success || !parsedBody.success) {
+      return reply.code(400).send({ message: 'Dados invalidos.' })
+    }
+
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
+    try {
+      const charge = await cancelAnnualAdvanceChargeService(request.authUser, parsedParams.data.id, parsedBody.data)
+      return reply.send({ charge })
+    } catch (error) {
+      return handleFinanceError(error, reply)
+    }
+  })
+
+  app.post('/annual-advance-charges/:id/fail', { preHandler: [authorizePermissions(['finance.commercial.manage'])] }, async (request, reply) => {
+    const parsedParams = annualAdvanceChargeIdParamsSchema.safeParse(request.params)
+    const parsedBody = failAnnualAdvanceChargeBodySchema.safeParse(request.body)
+
+    if (!parsedParams.success || !parsedBody.success) {
+      return reply.code(400).send({ message: 'Dados invalidos.' })
+    }
+
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
+    try {
+      const charge = await failAnnualAdvanceChargeService(request.authUser, parsedParams.data.id, parsedBody.data)
+      return reply.send({ charge })
+    } catch (error) {
+      return handleFinanceError(error, reply)
+    }
+  })
+
+  app.post('/annual-advance-charges/:id/reverse-payment', { preHandler: [authorizePermissions(['finance.commercial.manage', 'finance.payments.reverse'])] }, async (request, reply) => {
+    const parsedParams = annualAdvanceChargeIdParamsSchema.safeParse(request.params)
+    const parsedBody = reverseAnnualAdvancePaymentBodySchema.safeParse(request.body)
+
+    if (!parsedParams.success || !parsedBody.success) {
+      return reply.code(400).send({ message: 'Dados invalidos.' })
+    }
+
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
+    try {
+      const result = await reverseAnnualAdvancePaymentService(request.authUser, parsedParams.data.id, parsedBody.data)
+      return reply.send(result)
+    } catch (error) {
+      return handleFinanceError(error, reply)
+    }
+  })
+
+  app.post('/annual-advance-charges/:id/pix', { preHandler: [authorizePermissions(['finance.commercial.manage'])] }, async (request, reply) => {
+    const parsedParams = annualAdvanceChargeIdParamsSchema.safeParse(request.params)
+    const parsedBody = createAnnualAdvancePixChargeBodySchema.safeParse(request.body)
+
+    if (!parsedParams.success || !parsedBody.success) {
+      return reply.code(400).send({ message: 'Dados invalidos.' })
+    }
+
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
+    try {
+      const result = await createAnnualAdvancePixChargeService(request.authUser, parsedParams.data.id, parsedBody.data)
+      return reply.send(result)
+    } catch (error) {
+      return handleFinanceError(error, reply)
+    }
+  })
+
+  app.post('/finance/webhooks/mercado-pago', async (request, reply) => {
+    const parsedQuery = mercadoPagoWebhookQuerySchema.safeParse(request.query)
+
+    if (!parsedQuery.success) {
+      return reply.code(400).send({ message: 'Query invalida.' })
+    }
+
+    try {
+      await processMercadoPagoWebhookService({
+        topic: parsedQuery.data.topic,
+        type: parsedQuery.data.type,
+        action: parsedQuery.data.action,
+        dataId: parsedQuery.data['data.id'],
+        xSignature: request.headers['x-signature'],
+        xRequestId: request.headers['x-request-id'],
+        payload: typeof request.body === 'object' && request.body !== null
+          ? (request.body as Record<string, unknown>)
+          : undefined,
+      })
+
+      return reply.code(200).send({ acknowledged: true })
+    } catch (error) {
+      return handleFinanceError(error, reply)
+    }
+  })
+
   app.get('/contracts/:contractId/installments', { preHandler: [authorizePermissions(['finance.installments.read'])] }, async (request, reply) => {
     const parsedParams = contractIdParamsSchema.safeParse(request.params)
     const parsedQuery = listContractInstallmentsQuerySchema.safeParse(request.query)
@@ -181,11 +372,15 @@ export async function financeRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ message: 'Dados invalidos.' })
     }
 
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
     try {
       const page = parsedQuery.data.page
       const pageSize = parsedQuery.data.pageSize
 
-      const result = await listContractInstallmentsService({
+      const result = await listContractInstallmentsService(request.authUser, {
         contractId: parsedParams.data.contractId,
         page,
         pageSize,
@@ -207,8 +402,12 @@ export async function financeRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ message: 'Identificador invalido.' })
     }
 
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
     try {
-      const summary = await getContractFinancialSummaryService(parsedParams.data.contractId)
+      const summary = await getContractFinancialSummaryService(request.authUser, parsedParams.data.contractId)
       return reply.send(summary)
     } catch (error) {
       return handleFinanceError(error, reply)
@@ -222,8 +421,12 @@ export async function financeRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ message: 'Identificador invalido.' })
     }
 
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
     try {
-      const installment = await getInstallmentByIdService(parsed.data.id)
+      const installment = await getInstallmentByIdService(request.authUser, parsed.data.id)
       if (!installment) {
         return reply.code(404).send({ message: 'Parcela nao encontrada.' })
       }
@@ -387,6 +590,26 @@ export async function financeRoutes(app: FastifyInstance): Promise<void> {
     try {
       const charge = await cancelChargeService(request.authUser, parsedParams.data.id, parsedBody.data)
       return reply.send({ charge })
+    } catch (error) {
+      return handleFinanceError(error, reply)
+    }
+  })
+
+  app.post('/charges/:id/payment-link', { preHandler: [authorizePermissions(['finance.charges.create'])] }, async (request, reply) => {
+    const parsedParams = chargeIdParamsSchema.safeParse(request.params)
+    const parsedBody = createChargePaymentLinkBodySchema.safeParse(request.body)
+
+    if (!parsedParams.success || !parsedBody.success) {
+      return reply.code(400).send({ message: 'Dados invalidos.' })
+    }
+
+    if (!request.authUser) {
+      return reply.code(401).send({ message: 'Nao autenticado.' })
+    }
+
+    try {
+      const result = await createChargeCardPaymentLinkService(request.authUser, parsedParams.data.id, parsedBody.data)
+      return reply.send(result)
     } catch (error) {
       return handleFinanceError(error, reply)
     }

@@ -36,8 +36,11 @@ export function ClientPortalLayout({ children }: PropsWithChildren) {
   const context = contextQuery.data
 
   const handleLogout = async () => {
-    await logout()
-    navigate('/login')
+    try {
+      await logout()
+    } finally {
+      navigate('/login', { replace: true })
+    }
   }
 
   const handleClientChange = (clientId: string) => {

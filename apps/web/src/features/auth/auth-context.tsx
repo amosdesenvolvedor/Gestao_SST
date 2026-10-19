@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useMemo } from 'react'
+import { useState } from 'react'
 import type { PropsWithChildren } from 'react'
 import { hasPermission, type LoginInput, type Permission, type Role, type SafeUser } from '@gestao-sst/shared'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -23,9 +24,11 @@ const authQueryKey = ['auth', 'me']
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient()
+  const [forceLoggedOut, setForceLoggedOut] = useState(false)
 
   const meQuery = useQuery({
     queryKey: authQueryKey,
+    enabled: !forceLoggedOut,
     queryFn: async () => {
       const response = await authService.me()
       return response.user
@@ -41,6 +44,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const loginMutation = useMutation({
     mutationFn: authService.login,
     onSuccess(data) {
+      setForceLoggedOut(false)
       queryClient.setQueryData(authQueryKey, data.user)
     },
   })
@@ -63,7 +67,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return response.user
       },
       logout: async () => {
-        await logoutMutation.mutateAsync()
+        try {
+          await logoutMutation.mutateAsync()
+        } finally {
+          setForceLoggedOut(true)
+          queryClient.setQueryData(authQueryKey, null)
+          queryClient.removeQueries({ queryKey: authQueryKey, exact: true })
+        }
       },
       hasAnyRole: (roles) => {
         if (!meQuery.data) {
@@ -84,7 +94,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return permissions.some((permission) => hasPermission(meQuery.data.role, permission))
       },
     }),
-    [loginMutation, logoutMutation, meQuery.data, meQuery.isFetching, meQuery.isLoading],
+    [loginMutation, logoutMutation, meQuery.data, meQuery.isFetching, meQuery.isLoading, queryClient],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

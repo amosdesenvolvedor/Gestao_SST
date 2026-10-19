@@ -20,13 +20,25 @@ export function setAuthCookie(reply: FastifyReply, token: string): void {
 }
 
 export function clearAuthCookie(reply: FastifyReply): void {
-  const cookieValue = serialize(env.AUTH_COOKIE_NAME, '', {
+  const expiredAt = new Date(0)
+
+  const rootCookie = serialize(env.AUTH_COOKIE_NAME, '', {
     httpOnly: true,
     secure: isProduction,
     sameSite: 'lax',
     path: '/',
     maxAge: 0,
+    expires: expiredAt,
   })
 
-  reply.header('Set-Cookie', cookieValue)
+  const apiCookie = serialize(env.AUTH_COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/api',
+    maxAge: 0,
+    expires: expiredAt,
+  })
+
+  reply.header('Set-Cookie', [rootCookie, apiCookie])
 }

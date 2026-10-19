@@ -78,6 +78,11 @@ enum PaymentMethod {
   OTHER
 }
 
+enum CommercialPaymentModality {
+  MONTHLY_RECURRING
+  ANNUAL_PIX_ADVANCE
+}
+
 enum InstallmentStatus {
   PENDING
   PARTIALLY_PAID
@@ -104,47 +109,109 @@ enum PaymentStatus {
   REVERSED
 }
 
+enum AnnualAdvanceBillingStatus {
+  PENDING_PAYMENT
+  PAID
+  CANCELLED
+  FAILED
+  REVERSED
+}
+
+enum AnnualAdvancePaymentStatus {
+  NOT_CONFIRMED
+  CONFIRMED
+  REVERSED
+}
+
+enum ExternalPaymentProvider {
+  MERCADO_PAGO
+}
+
+enum ExternalPaymentIntegrationStatus {
+  NOT_REQUESTED
+  PENDING_PROVIDER
+  PENDING_RECONCILIATION
+  CONFIRMED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum WebhookProcessingStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+enum SstIndoorOutdoorType {
+  INDOOR
+  OUTDOOR
+  MIXED
+}
+
+enum SstScheduleType {
+  FIXED
+  SHIFT
+  FLEX
+  OTHER
+}
+
+enum SstActivityFrequency {
+  ROUTINE
+  NON_ROUTINE
+  EVENTUAL
+}
+
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   name         String?
   passwordHash String
   role         Role
-  isActive     Boolean  @default(true)
+  isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  professional Professional?
-  clientMemberships ClientMembership[]
-  generatedFinancialPlans ContractFinancialPlan[] @relation("FinancialPlanGeneratedBy")
-  recordedPayments        Payment[]               @relation("PaymentCreatedBy")
-  reversedPayments        Payment[]               @relation("PaymentReversedBy")
-  cancelledInstallments   Installment[]           @relation("InstallmentCancelledBy")
+  professional                  Professional?
+  clientMemberships             ClientMembership[]
+  generatedFinancialPlans       ContractFinancialPlan[]       @relation("FinancialPlanGeneratedBy")
+  grantedCommercialConditions   ContractCommercialCondition[] @relation("CommercialConditionGrantedBy")
+  createdAnnualAdvanceCharges   AnnualAdvanceCharge[]         @relation("AnnualAdvanceChargeCreatedBy")
+  confirmedAnnualAdvanceCharges AnnualAdvanceCharge[]         @relation("AnnualAdvanceChargeConfirmedBy")
+  recordedPayments              Payment[]                     @relation("PaymentCreatedBy")
+  reversedPayments              Payment[]                     @relation("PaymentReversedBy")
+  cancelledInstallments         Installment[]                 @relation("InstallmentCancelledBy")
 
   @@index([role])
 }
 
 model Client {
-  id                    String          @id @default(cuid())
+  id                    String        @id @default(cuid())
   legalName             String
   tradeName             String?
   taxIdType             DocumentType?
-  taxIdNumberNormalized String?         @unique
+  taxIdNumberNormalized String?       @unique
   stateRegistration     String?
   municipalRegistration String?
   cnaeMain              String?
   cnaeSecondary         String[]
   sizeCategory          String?
-  status                ClientStatus    @default(PROSPECT)
+  status                ClientStatus  @default(PROSPECT)
   notes                 String?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
-  establishments Establishment[]
-  contacts       ClientContact[]
-  contracts      Contract[]
-  memberships    ClientMembership[]
+  establishments      Establishment[]
+  contacts            ClientContact[]
+  contracts           Contract[]
+  memberships         ClientMembership[]
+  sstSectors          SstSector[]
+  sstWorkEnvironments SstWorkEnvironment[]
+  sstRoles            SstRole[]
+  sstActivities       SstActivity[]
+  sstWorkSchedules    SstWorkSchedule[]
 
   @@index([legalName])
   @@index([status])
@@ -190,9 +257,13 @@ model Establishment {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
 
-  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  contractLinks ContractEstablishment[]
+  client              Client                  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  contractLinks       ContractEstablishment[]
+  sstSectors          SstSector[]
+  sstWorkEnvironments SstWorkEnvironment[]
+  sstWorkSchedules    SstWorkSchedule[]
 
+  @@unique([clientId, id])
   @@index([clientId, status])
   @@index([clientId, city])
   @@index([clientId, state])
@@ -218,30 +289,32 @@ model ServiceCatalog {
 }
 
 model Contract {
-  id                 String         @id @default(cuid())
-  clientId           String
-  renewedFromId      String?
-  contractNumber     String         @unique
-  title              String
-  status             ContractStatus @default(DRAFT)
-  startDate          DateTime
-  endDate            DateTime
-  durationMonths     Int
-  currency           String         @default("BRL")
-  totalValue         Decimal        @db.Decimal(14, 2)
-  monthlyBaseValue   Decimal        @db.Decimal(14, 2)
-  dueDay             Int
-  paymentMethod      PaymentMethod
-  notes              String?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  id               String         @id @default(cuid())
+  clientId         String
+  renewedFromId    String?
+  contractNumber   String         @unique
+  title            String
+  status           ContractStatus @default(DRAFT)
+  startDate        DateTime
+  endDate          DateTime
+  durationMonths   Int
+  currency         String         @default("BRL")
+  totalValue       Decimal        @db.Decimal(14, 2)
+  monthlyBaseValue Decimal        @db.Decimal(14, 2)
+  dueDay           Int
+  paymentMethod    PaymentMethod
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
-  client               Client                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  renewedFromContract  Contract?              @relation("ContractRenewal", fields: [renewedFromId], references: [id], onDelete: SetNull)
-  renewedContracts     Contract[]             @relation("ContractRenewal")
+  client               Client                        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  renewedFromContract  Contract?                     @relation("ContractRenewal", fields: [renewedFromId], references: [id], onDelete: SetNull)
+  renewedContracts     Contract[]                    @relation("ContractRenewal")
   services             ContractService[]
   establishments       ContractEstablishment[]
   financialPlan        ContractFinancialPlan?
+  commercialConditions ContractCommercialCondition[]
+  annualAdvanceCharges AnnualAdvanceCharge[]
   installments         Installment[]
 
   @@index([clientId])
@@ -251,47 +324,83 @@ model Contract {
   @@index([clientId, status])
 }
 
-model ContractFinancialPlan {
-  id               String   @id @default(cuid())
-  contractId       String   @unique
-  totalAmount      Decimal  @db.Decimal(14, 2)
-  installmentCount Int
-  dueDay           Int
-  firstDueDate     DateTime
-  generationRule   String
-  version          Int      @default(1)
-  generatedAt      DateTime @default(now())
-  generatedByUserId String?
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+model ContractCommercialCondition {
+  id                      String                    @id @default(cuid())
+  contractId              String
+  version                 Int
+  modality                CommercialPaymentModality
+  paymentMethod           PaymentMethod
+  discountPercent         Decimal?                  @db.Decimal(5, 2)
+  discountFixedAmount     Decimal                   @db.Decimal(14, 2)
+  eligibleAmount          Decimal                   @db.Decimal(14, 2)
+  discountAmount          Decimal                   @db.Decimal(14, 2)
+  netAmount               Decimal                   @db.Decimal(14, 2)
+  advanceMonths           Int?
+  coverageStartDate       DateTime?
+  coverageEndDate         DateTime?
+  commercialJustification String
+  grantedByUserId         String
+  supersededAt            DateTime?
+  isActive                Boolean                   @default(true)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
 
-  contract         Contract      @relation(fields: [contractId], references: [id], onDelete: Restrict)
-  generatedByUser  User?         @relation("FinancialPlanGeneratedBy", fields: [generatedByUserId], references: [id], onDelete: SetNull)
-  installments     Installment[]
+  contract             Contract              @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  grantedByUser        User                  @relation("CommercialConditionGrantedBy", fields: [grantedByUserId], references: [id], onDelete: Restrict)
+  annualAdvanceCharges AnnualAdvanceCharge[]
+  installments         Installment[]
+
+  @@unique([contractId, version])
+  @@index([contractId, isActive])
+  @@index([coverageStartDate, coverageEndDate])
+}
+
+model ContractFinancialPlan {
+  id                String   @id @default(cuid())
+  contractId        String   @unique
+  totalAmount       Decimal  @db.Decimal(14, 2)
+  installmentCount  Int
+  dueDay            Int
+  firstDueDate      DateTime
+  generationRule    String
+  version           Int      @default(1)
+  generatedAt       DateTime @default(now())
+  generatedByUserId String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  contract        Contract      @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  generatedByUser User?         @relation("FinancialPlanGeneratedBy", fields: [generatedByUserId], references: [id], onDelete: SetNull)
+  installments    Installment[]
 
   @@index([generatedAt])
 }
 
 model Installment {
-  id                  String            @id @default(cuid())
-  contractId          String
-  financialPlanId     String
-  number              Int
-  dueDate             DateTime
-  originalAmount      Decimal           @db.Decimal(14, 2)
-  adjustedAmount      Decimal           @db.Decimal(14, 2)
-  status              InstallmentStatus @default(PENDING)
-  description         String?
-  cancellationReason  String?
-  cancelledAt         DateTime?
-  cancelledByUserId   String?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  id                      String            @id @default(cuid())
+  contractId              String
+  financialPlanId         String
+  number                  Int
+  dueDate                 DateTime
+  originalAmount          Decimal           @db.Decimal(14, 2)
+  adjustedAmount          Decimal           @db.Decimal(14, 2)
+  discountAllocatedAmount Decimal           @default(0) @db.Decimal(14, 2)
+  coveredByAdvance        Boolean           @default(false)
+  commercialConditionId   String?
+  status                  InstallmentStatus @default(PENDING)
+  description             String?
+  cancellationReason      String?
+  cancelledAt             DateTime?
+  cancelledByUserId       String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
 
-  contract            Contract              @relation(fields: [contractId], references: [id], onDelete: Restrict)
-  financialPlan       ContractFinancialPlan @relation(fields: [financialPlanId], references: [id], onDelete: Restrict)
-  cancelledByUser     User?                 @relation("InstallmentCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  contract            Contract                         @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  financialPlan       ContractFinancialPlan            @relation(fields: [financialPlanId], references: [id], onDelete: Restrict)
+  commercialCondition ContractCommercialCondition?     @relation(fields: [commercialConditionId], references: [id], onDelete: SetNull)
+  cancelledByUser     User?                            @relation("InstallmentCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  annualAdvanceLinks  AnnualAdvanceChargeInstallment[]
   charges             Charge[]
   payments            Payment[]
 
@@ -299,22 +408,127 @@ model Installment {
   @@index([contractId, dueDate])
   @@index([dueDate, status])
   @@index([financialPlanId])
+  @@index([commercialConditionId])
+}
+
+model AnnualAdvanceCharge {
+  id                    String                     @id @default(cuid())
+  contractId            String
+  commercialConditionId String
+  referenceCode         String                     @unique
+  idempotencyKey        String                     @unique
+  internalReference     String?
+  paymentMethod         PaymentMethod
+  grossAmount           Decimal                    @db.Decimal(14, 2)
+  discountAmount        Decimal                    @db.Decimal(14, 2)
+  netAmount             Decimal                    @db.Decimal(14, 2)
+  coverageStartDate     DateTime
+  coverageEndDate       DateTime
+  dueDate               DateTime
+  billingStatus         AnnualAdvanceBillingStatus @default(PENDING_PAYMENT)
+  paymentStatus         AnnualAdvancePaymentStatus @default(NOT_CONFIRMED)
+  paidAt                DateTime?
+  cancelledAt           DateTime?
+  failedAt              DateTime?
+  reversedAt            DateTime?
+  createdByUserId       String
+  confirmedByUserId     String?
+  notes                 String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  contract            Contract                         @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  commercialCondition ContractCommercialCondition      @relation(fields: [commercialConditionId], references: [id], onDelete: Restrict)
+  createdByUser       User                             @relation("AnnualAdvanceChargeCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  confirmedByUser     User?                            @relation("AnnualAdvanceChargeConfirmedBy", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
+  installmentLinks    AnnualAdvanceChargeInstallment[]
+  externalPayment     AnnualAdvanceExternalPayment?
+
+  @@unique([contractId, commercialConditionId])
+  @@index([contractId, billingStatus])
+  @@index([commercialConditionId])
+  @@index([dueDate])
+}
+
+model AnnualAdvanceExternalPayment {
+  id                       String                           @id @default(cuid())
+  annualAdvanceChargeId    String                           @unique
+  provider                 ExternalPaymentProvider
+  integrationStatus        ExternalPaymentIntegrationStatus @default(NOT_REQUESTED)
+  externalPaymentId        String?                          @unique
+  externalOrderId          String?
+  externalReference        String
+  externalIdempotencyKey   String
+  lastProviderStatus       String?
+  lastProviderStatusDetail String?
+  lastProviderStatusAt     DateTime?
+  lastWebhookAt            DateTime?
+  lastSyncedAt             DateTime?
+  lastErrorCode            String?
+  lastErrorMessage         String?
+  createdAt                DateTime                         @default(now())
+  updatedAt                DateTime                         @updatedAt
+
+  annualAdvanceCharge AnnualAdvanceCharge           @relation(fields: [annualAdvanceChargeId], references: [id], onDelete: Restrict)
+  webhookEvents       PaymentProviderWebhookEvent[]
+
+  @@index([provider, integrationStatus])
+  @@index([provider, externalPaymentId])
+  @@index([provider, externalReference])
+}
+
+model PaymentProviderWebhookEvent {
+  id                             String                  @id @default(cuid())
+  provider                       ExternalPaymentProvider
+  topic                          String?
+  action                         String?
+  eventId                        String?
+  resourceId                     String?
+  xRequestId                     String?
+  signatureTs                    String?
+  dedupeKey                      String                  @unique
+  payload                        Json?
+  processingStatus               WebhookProcessingStatus @default(RECEIVED)
+  processingError                String?
+  processedAt                    DateTime?
+  annualAdvanceExternalPaymentId String?
+  createdAt                      DateTime                @default(now())
+  updatedAt                      DateTime                @updatedAt
+
+  annualAdvanceExternalPayment AnnualAdvanceExternalPayment? @relation(fields: [annualAdvanceExternalPaymentId], references: [id], onDelete: SetNull)
+
+  @@index([provider, resourceId])
+  @@index([provider, eventId])
+  @@index([processingStatus, createdAt])
+}
+
+model AnnualAdvanceChargeInstallment {
+  annualAdvanceChargeId String
+  installmentId         String
+  allocatedAmount       Decimal  @db.Decimal(14, 2)
+  createdAt             DateTime @default(now())
+
+  annualAdvanceCharge AnnualAdvanceCharge @relation(fields: [annualAdvanceChargeId], references: [id], onDelete: Restrict)
+  installment         Installment         @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+
+  @@id([annualAdvanceChargeId, installmentId])
+  @@index([installmentId])
 }
 
 model Charge {
-  id              String         @id @default(cuid())
-  installmentId   String
-  provider        ChargeProvider
-  method          PaymentMethod
-  status          ChargeStatus   @default(PENDING)
-  amount          Decimal        @db.Decimal(14, 2)
-  externalId      String?
-  idempotencyKey  String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  installmentId  String
+  provider       ChargeProvider
+  method         PaymentMethod
+  status         ChargeStatus   @default(PENDING)
+  amount         Decimal        @db.Decimal(14, 2)
+  externalId     String?
+  idempotencyKey String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  installment     Installment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
-  payments        Payment[]
+  installment Installment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  payments    Payment[]
 
   @@unique([externalId])
   @@unique([idempotencyKey])
@@ -323,28 +537,28 @@ model Charge {
 }
 
 model Payment {
-  id                 String        @id @default(cuid())
-  installmentId      String
-  chargeId           String?
-  amount             Decimal       @db.Decimal(14, 2)
-  paidAt             DateTime
-  method             PaymentMethod
-  provider           ChargeProvider
-  status             PaymentStatus @default(CONFIRMED)
-  externalReference  String?
-  idempotencyKey     String?
-  notes              String?
-  createdByUserId    String?
-  reversedAt         DateTime?
-  reversedByUserId   String?
-  reversalReason     String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                String         @id @default(cuid())
+  installmentId     String
+  chargeId          String?
+  amount            Decimal        @db.Decimal(14, 2)
+  paidAt            DateTime
+  method            PaymentMethod
+  provider          ChargeProvider
+  status            PaymentStatus  @default(CONFIRMED)
+  externalReference String?
+  idempotencyKey    String?
+  notes             String?
+  createdByUserId   String?
+  reversedAt        DateTime?
+  reversedByUserId  String?
+  reversalReason    String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  installment        Installment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
-  charge             Charge?     @relation(fields: [chargeId], references: [id], onDelete: SetNull)
-  createdByUser      User?       @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  reversedByUser     User?       @relation("PaymentReversedBy", fields: [reversedByUserId], references: [id], onDelete: SetNull)
+  installment    Installment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  charge         Charge?     @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  createdByUser  User?       @relation("PaymentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reversedByUser User?       @relation("PaymentReversedBy", fields: [reversedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([externalReference])
   @@unique([idempotencyKey])
@@ -393,21 +607,21 @@ model ContractEstablishment {
 }
 
 model ClientContact {
-  id                String   @id @default(cuid())
-  clientId          String
-  name              String
-  role              String?
-  department        String?
-  email             String?
-  phone             String
-  preferredChannel  String?
-  isPrimary         Boolean  @default(false)
-  receivesBilling   Boolean  @default(false)
-  receivesReports   Boolean  @default(false)
-  receivesAlerts    Boolean  @default(false)
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String   @id @default(cuid())
+  clientId         String
+  name             String
+  role             String?
+  department       String?
+  email            String?
+  phone            String
+  preferredChannel String?
+  isPrimary        Boolean  @default(false)
+  receivesBilling  Boolean  @default(false)
+  receivesReports  Boolean  @default(false)
+  receivesAlerts   Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
@@ -438,14 +652,123 @@ model Professional {
   @@index([isActive])
 }
 
+model SstSector {
+  id              String   @id @default(cuid())
+  clientId        String
+  establishmentId String
+  code            String
+  name            String
+  description     String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  client           Client               @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  establishment    Establishment        @relation(fields: [clientId, establishmentId], references: [clientId, id], onDelete: Restrict)
+  workEnvironments SstWorkEnvironment[]
+
+  @@unique([establishmentId, code])
+  @@unique([clientId, establishmentId, id])
+  @@index([clientId, isActive])
+  @@index([establishmentId, isActive])
+  @@index([name])
+}
+
+model SstWorkEnvironment {
+  id                String               @id @default(cuid())
+  clientId          String
+  establishmentId   String
+  sectorId          String
+  code              String
+  name              String
+  description       String?
+  indoorOutdoorType SstIndoorOutdoorType @default(INDOOR)
+  isActive          Boolean              @default(true)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  establishment Establishment @relation(fields: [clientId, establishmentId], references: [clientId, id], onDelete: Restrict)
+  sector        SstSector     @relation(fields: [clientId, establishmentId, sectorId], references: [clientId, establishmentId, id], onDelete: Restrict)
+
+  @@unique([sectorId, code])
+  @@index([clientId, isActive])
+  @@index([establishmentId, isActive])
+  @@index([sectorId, isActive])
+  @@index([name])
+}
+
+model SstRole {
+  id             String   @id @default(cuid())
+  clientId       String
+  title          String
+  cboCode        String?
+  cboDescription String?
+  description    String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  client     Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  activities SstActivity[]
+
+  @@unique([clientId, id])
+  @@index([clientId, isActive])
+  @@index([title])
+  @@index([cboCode])
+}
+
+model SstActivity {
+  id          String               @id @default(cuid())
+  clientId    String
+  roleId      String
+  title       String
+  frequency   SstActivityFrequency @default(ROUTINE)
+  description String?
+  isCritical  Boolean              @default(false)
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  client Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  role   SstRole @relation(fields: [clientId, roleId], references: [clientId, id], onDelete: Restrict)
+
+  @@unique([roleId, title])
+  @@index([clientId, isActive])
+  @@index([roleId, isActive])
+  @@index([title])
+}
+
+model SstWorkSchedule {
+  id              String          @id @default(cuid())
+  clientId        String
+  establishmentId String
+  name            String
+  scheduleType    SstScheduleType @default(FIXED)
+  weeklyHours     Decimal?        @db.Decimal(5, 2)
+  shiftPattern    String?
+  description     String?
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  client        Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  establishment Establishment @relation(fields: [clientId, establishmentId], references: [clientId, id], onDelete: Restrict)
+
+  @@unique([establishmentId, name])
+  @@index([clientId, isActive])
+  @@index([establishmentId, isActive])
+  @@index([scheduleType])
+}
+
 model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  action     String
-  entity     String
-  entityId   String?
-  createdAt  DateTime @default(now())
-  metadata   Json?
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  createdAt DateTime @default(now())
+  metadata  Json?
 
   @@index([action, entity])
   @@index([createdAt])
