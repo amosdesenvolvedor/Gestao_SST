@@ -1,5 +1,8 @@
 # GestãoSST — auditoria e versão candidata de 19/10/2026
 
+> Registro histórico anterior ao deploy. A auditoria da VM foi completada e
+> a publicação foi concluída; consulte `RELEASE_v1.1.0-rc.1_DEPLOY_REPORT.md`.
+
 ## Escopo e situação
 
 Revisão do código local e das branches remotas do repositório

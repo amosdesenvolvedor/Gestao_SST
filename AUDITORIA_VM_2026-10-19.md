@@ -1,5 +1,8 @@
 # GestãoSST — atualização da auditoria da VM
 
+> Atualização: o deploy foi posteriormente autorizado e concluído.
+> Consulte `RELEASE_v1.1.0-rc.1_DEPLOY_REPORT.md` para o estado final.
+
 Data: 19/10/2026. Esta atualização substitui as limitações de acesso remoto
 registradas em `AUDITORIA_GO_E_RELEASE_2026-10-19.md`; o planejamento Go e
 a conferência das fases daquele relatório permanecem válidos.
